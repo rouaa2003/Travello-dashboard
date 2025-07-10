@@ -1,0 +1,119 @@
+.stats-page {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 25px 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  direction: rtl;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  color: #333;
+}
+
+.stats-page h1 {
+  text-align: center;
+  font-weight: 700;
+  font-size: 28px;
+  margin-bottom: 35px;
+  color: #222;
+}
+
+.stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  justify-content: center;
+}
+
+.stat-box {
+  flex: 1 1 220px;
+  padding: 25px 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  transition: box-shadow 0.3s ease;
+  cursor: default;
+}
+
+.stat-box:hover {
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+.stat-box h3 {
+  margin-bottom: 14px;
+  font-size: 20px;
+  color: #444;
+}
+
+.stat-box.users {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.stat-box.trips {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.stat-box.top-province {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.stat-box.top-booking-province {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* جداول المحافظات */
+.province-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 30px;
+  direction: rtl;
+  font-size: 16px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.province-table thead {
+  background-color: #0077cc;
+  color: white;
+}
+
+.province-table th,
+.province-table td {
+  border: 1px solid #ccc;
+  padding: 12px 15px;
+  text-align: center;
+}
+
+.province-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.province-table tbody tr:hover {
+  background-color: #e6f2ff;
+}
+
+/* عناوين الجداول */
+.stats-page h2 {
+  margin-top: 50px;
+  margin-bottom: 15px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #222;
+  text-align: center;
+}
+
+/* رسالة عدم وجود بيانات */
+.stats-page p {
+  text-align: center;
+  font-size: 18px;
+  color: #666;
+  margin-top: 20px;
+  font-weight: 500;
+}
