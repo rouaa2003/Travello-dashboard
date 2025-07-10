@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './Home.css';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 
 function Home() {
   const [userCount, setUserCount] = useState(0);
@@ -9,22 +11,30 @@ function Home() {
   const [todayTripsCount, setTodayTripsCount] = useState(0);
 
   useEffect(() => {
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const trips = JSON.parse(localStorage.getItem('trips')) || [];
-    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+    const fetchData = async () => {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const tripsSnapshot = await getDocs(collection(db, 'trips'));
+      const bookingsSnapshot = await getDocs(collection(db, 'bookings'));
 
-    setUserCount(users.length);
-    setTripCount(trips.length);
-    setBookingCount(bookings.length);
+      const users = usersSnapshot.docs.map(doc => doc.data());
+      const trips = tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const bookings = bookingsSnapshot.docs.map(doc => doc.data());
 
-    // عرض آخر 5 رحلات
-    const sortedTrips = [...trips].sort((a, b) => new Date(b.date) - new Date(a.date));
-    setRecentTrips(sortedTrips.slice(0, 5));
+      setUserCount(users.length);
+      setTripCount(trips.length);
+      setBookingCount(bookings.length);
 
-    // عدد رحلات اليوم
-    const today = new Date().toISOString().split('T')[0];
-    const todayTrips = trips.filter(trip => trip.date === today);
-    setTodayTripsCount(todayTrips.length);
+      // ترتيب الرحلات حسب التاريخ نزولاً
+      const sortedTrips = [...trips].sort((a, b) => new Date(b.date) - new Date(a.date));
+      setRecentTrips(sortedTrips.slice(0, 5));
+
+      // عدد رحلات اليوم
+      const today = new Date().toISOString().split('T')[0];
+      const todayTrips = trips.filter(trip => trip.date === today);
+      setTodayTripsCount(todayTrips.length);
+    };
+
+    fetchData();
   }, []);
 
   return (
@@ -67,7 +77,7 @@ function Home() {
             <tbody>
               {recentTrips.map(trip => (
                 <tr key={trip.id}>
-                  <td>{trip.destination}</td>
+                  <td>{trip.province}</td>
                   <td>{trip.date}</td>
                   <td>{trip.price}</td>
                 </tr>

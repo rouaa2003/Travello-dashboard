@@ -1,53 +1,100 @@
 import React, { useState, useEffect } from 'react';
 import './Trips.css';
+import { db } from './firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 function Trips() {
-  const [trips, setTrips] = useState(() => {
-    const stored = localStorage.getItem('trips');
-    return stored ? JSON.parse(stored) : [];
-  });
-
-  const [newTrip, setNewTrip] = useState({ destination: '', date: '', price: '' });
+  const [trips, setTrips] = useState([]);
+  const [newTrip, setNewTrip] = useState({
+  province: '',
+  date: '',
+  price: '',
+  maxSeats: '',
+});
   const [showForm, setShowForm] = useState(false);
-
   const [editingTrip, setEditingTrip] = useState(null);
-  const [editedTrip, setEditedTrip] = useState({ destination: '', date: '', price: '' });
+  const [editedTrip, setEditedTrip] = useState({ province: '', date: '', price: '' });
 
+  const tripsCollection = collection(db, 'trips');
+
+  // جلب البيانات من Firestore
   useEffect(() => {
-    localStorage.setItem('trips', JSON.stringify(trips));
-  }, [trips]);
+    const fetchTrips = async () => {
+      const snapshot = await getDocs(tripsCollection);
+      const tripsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setTrips(tripsData);
+    };
+
+    fetchTrips();
+  }, []);
 
   const handleChange = (e) => {
     setNewTrip({ ...newTrip, [e.target.name]: e.target.value });
   };
 
-  const addTrip = () => {
-    if (!newTrip.destination || !newTrip.date || !newTrip.price) return;
+  const addTrip = async () => {
+    if (!newTrip.province || !newTrip.date || !newTrip.price) return;
 
-    const newId = Date.now();
-    setTrips([...trips, { id: newId, ...newTrip }]);
-    setNewTrip({ destination: '', date: '', price: '' });
+   const docRef = await addDoc(tripsCollection, {
+  ...newTrip,
+  price: Number(newTrip.price),
+  maxSeats: Number(newTrip.maxSeats),
+  availableSeats: Number(newTrip.maxSeats), // بالبداية نفس العدد الكامل
+  createdAt: serverTimestamp(),
+});
+
+
+  setTrips([
+  ...trips,
+  {
+    id: docRef.id,
+    ...newTrip,
+    price: Number(newTrip.price),
+    maxSeats: Number(newTrip.maxSeats),
+    availableSeats: Number(newTrip.maxSeats),
+  },
+]);
+
+    setNewTrip({ province: '', date: '', price: '' });
     setShowForm(false);
   };
 
-  const deleteTrip = (id) => {
+  const deleteTrip = async (id) => {
+    await deleteDoc(doc(db, 'trips', id));
     setTrips(trips.filter((trip) => trip.id !== id));
   };
 
   const handleEdit = (trip) => {
     setEditingTrip(trip);
     setEditedTrip({
-      destination: trip.destination,
+      province: trip.province,
       date: trip.date,
       price: trip.price,
     });
   };
 
-  const saveChanges = () => {
-    const updated = trips.map((trip) =>
-      trip.id === editingTrip.id ? { ...trip, ...editedTrip } : trip
+  const saveChanges = async () => {
+    const tripRef = doc(db, 'trips', editingTrip.id);
+    await updateDoc(tripRef, {
+      ...editedTrip,
+      price: Number(editedTrip.price),
+    });
+
+    const updatedTrips = trips.map((t) =>
+      t.id === editingTrip.id ? { ...t, ...editedTrip } : t
     );
-    setTrips(updated);
+    setTrips(updatedTrips);
     setEditingTrip(null);
   };
 
@@ -63,9 +110,9 @@ function Trips() {
         <div className="form-container">
           <input
             type="text"
-            name="destination"
-            placeholder="المحافظة"
-            value={newTrip.destination}
+            name="province"
+            placeholder="الوجهة"
+            value={newTrip.province}
             onChange={handleChange}
           />
           <input
@@ -81,6 +128,14 @@ function Trips() {
             value={newTrip.price}
             onChange={handleChange}
           />
+          <input
+            type="number"
+            name="maxSeats"
+            placeholder="عدد المقاعد"
+            value={newTrip.maxSeats}
+            onChange={handleChange}
+          />
+
           <button onClick={addTrip}>إضافة</button>
         </div>
       )}
@@ -88,27 +143,32 @@ function Trips() {
       <table>
         <thead>
           <tr>
-            <th>id</th>
-            <th>المحافظة</th>
-            <th>التاريخ</th>
-            <th>السعر</th>
+            <th>الرقم</th>
+            <th>الوجهة</th>
+            <th>تاريخ الرحلة</th>
+            <th>السعر (ل.س)</th>
+            <th>العدد الكلي</th>
+            <th>المقاعد المتاحة</th>
             <th>تعديل</th>
             <th>حذف</th>
           </tr>
         </thead>
         <tbody>
-          {trips.map((trip) => (
+          {trips.map((trip, index) => (
             <tr key={trip.id}>
-              <td>{trip.id}</td>
-              <td>{trip.destination}</td>
+              <td>{index + 1}</td>
+              <td>{trip.province}</td>
               <td>{trip.date}</td>
-              <td>{trip.price}</td>
+              <td>{Number(trip.price).toLocaleString('ar-SY')}</td>
+              <td>{trip.maxSeats}</td>
+              <td>{trip.availableSeats}</td>
+
               <td>
-  <button className="edit-btn" onClick={() => handleEdit(trip)}>✏️ تعديل</button>
-</td>
-<td>
-  <button className="delete-btn" onClick={() => deleteTrip(trip.id)}>🗑 حذف</button>
-</td>
+                <button className="edit-btn" onClick={() => handleEdit(trip)}>✏️ تعديل</button>
+              </td>
+              <td>
+                <button className="delete-btn" onClick={() => deleteTrip(trip.id)}>🗑 حذف</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -120,8 +180,8 @@ function Trips() {
             <h3>تعديل الرحلة</h3>
             <input
               type="text"
-              value={editedTrip.destination}
-              onChange={(e) => setEditedTrip({ ...editedTrip, destination: e.target.value })}
+              value={editedTrip.province}
+              onChange={(e) => setEditedTrip({ ...editedTrip, province: e.target.value })}
             />
             <input
               type="date"

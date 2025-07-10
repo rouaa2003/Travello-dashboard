@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './Statistics.css';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 
 function Statistics() {
   const [usersCount, setUsersCount] = useState(0);
@@ -11,56 +13,53 @@ function Statistics() {
   const [topBookingProvince, setTopBookingProvince] = useState(null);
 
   useEffect(() => {
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    const trips = JSON.parse(localStorage.getItem('trips')) || [];
-    const bookings = JSON.parse(localStorage.getItem('bookings')) || [];
+    const fetchData = async () => {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const tripsSnapshot = await getDocs(collection(db, 'trips'));
+      const bookingsSnapshot = await getDocs(collection(db, 'bookings'));
 
-    setUsersCount(users.length);
-    setTripsCount(trips.length);
+      const users = usersSnapshot.docs.map(doc => doc.data());
+      const trips = tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const bookings = bookingsSnapshot.docs.map(doc => doc.data());
 
-    // حساب عدد الرحلات حسب المحافظة (destination بدل province)
-    const counts = {};
-    trips.forEach(trip => {
-      if (trip.destination) {
-        counts[trip.destination] = (counts[trip.destination] || 0) + 1;
-      }
-    });
-    setProvinceCounts(counts);
+      setUsersCount(users.length);
+      setTripsCount(trips.length);
 
-    // تحديد المحافظة الأكثر نشاطًا (حسب الرحلات)
-    let max = 0;
-    let top = null;
-    for (let province in counts) {
-      if (counts[province] > max) {
-        max = counts[province];
-        top = province;
-      }
-    }
-    setTopProvince(top ?? 'لا توجد بيانات');
+      // حساب عدد الرحلات حسب المحافظة
+      const counts = {};
+      trips.forEach(trip => {
+        if (trip.province) {
+          counts[trip.province] = (counts[trip.province] || 0) + 1;
+        }
+      });
+      setProvinceCounts(counts);
 
-    // حساب عدد الحجوزات حسب المحافظة
-    // نفترض أن كل حجز يحتوي على tripId لنربطه بالرحلة
-    // ثم نستخدم destination من الرحلة
-    const bookingCounts = {};
-    bookings.forEach(booking => {
-      // إيجاد الرحلة المرتبطة بالحجز
-      const trip = trips.find(t => t.id === booking.tripId);
-      if (trip && trip.destination) {
-        bookingCounts[trip.destination] = (bookingCounts[trip.destination] || 0) + 1;
-      }
-    });
-    setProvinceBookingCounts(bookingCounts);
+      // المحافظة الأكثر رحلات
+      const top = Object.entries(counts).reduce(
+        (acc, [province, count]) => count > acc.count ? { province, count } : acc,
+        { province: 'لا توجد بيانات', count: 0 }
+      );
+      setTopProvince(top.province);
 
-    // تحديد المحافظة الأكثر حجوزات
-    let maxBookings = 0;
-    let topBookingProv = null;
-    for (let province in bookingCounts) {
-      if (bookingCounts[province] > maxBookings) {
-        maxBookings = bookingCounts[province];
-        topBookingProv = province;
-      }
-    }
-    setTopBookingProvince(topBookingProv ?? 'لا توجد بيانات');
+      // حساب عدد الحجوزات حسب المحافظة
+      const bookingCounts = {};
+      bookings.forEach(booking => {
+        const trip = trips.find(t => t.id === booking.tripId);
+        if (trip && trip.province) {
+          bookingCounts[trip.province] = (bookingCounts[trip.province] || 0) + 1;
+        }
+      });
+      setProvinceBookingCounts(bookingCounts);
+
+      // المحافظة الأكثر حجوزات
+      const topBooking = Object.entries(bookingCounts).reduce(
+        (acc, [province, count]) => count > acc.count ? { province, count } : acc,
+        { province: 'لا توجد بيانات', count: 0 }
+      );
+      setTopBookingProvince(topBooking.province);
+    };
+
+    fetchData();
   }, []);
 
   return (

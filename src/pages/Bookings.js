@@ -1,5 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import './Bookings.css';
+import { db } from './firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+} from 'firebase/firestore';
 
 function Bookings() {
   const [bookings, setBookings] = useState([]);
@@ -11,69 +19,93 @@ function Bookings() {
   const [editingBooking, setEditingBooking] = useState(null);
   const [editedBooking, setEditedBooking] = useState({ userIds: [], tripId: '' });
 
-  const isInitialMount = useRef(true);
+  const bookingsCollection = collection(db, 'bookings');
+  const usersCollection = collection(db, 'users');
+  const tripsCollection = collection(db, 'trips');
 
-  // جلب البيانات أول مرة فقط
   useEffect(() => {
-    const storedBookings = JSON.parse(localStorage.getItem('bookings')) || [];
-    const storedUsers = JSON.parse(localStorage.getItem('users')) || [];
-    const storedTrips = JSON.parse(localStorage.getItem('trips')) || [];
+    const fetchData = async () => {
+      const bookingsSnapshot = await getDocs(bookingsCollection);
+      const usersSnapshot = await getDocs(usersCollection);
+      const tripsSnapshot = await getDocs(tripsCollection);
 
-    setBookings(storedBookings);
-    setUsers(storedUsers);
-    setTrips(storedTrips);
+      setBookings(bookingsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setTrips(tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
+
+    fetchData();
   }, []);
 
-  // حفظ الحجوزات في localStorage عند كل تغيير (بعد التحميل الأول)
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    localStorage.setItem('bookings', JSON.stringify(bookings));
-  }, [bookings]);
-
   const handleUserSelect = (e, isEdit = false) => {
-    const selected = Array.from(e.target.selectedOptions).map((opt) => Number(opt.value));
+    const selected = Array.from(e.target.selectedOptions).map((opt) => opt.value);
     isEdit
       ? setEditedBooking({ ...editedBooking, userIds: selected })
       : setNewBooking({ ...newBooking, userIds: selected });
   };
 
-  const addBooking = () => {
+  const addBooking = async () => {
     if (!newBooking.userIds.length || !newBooking.tripId) return;
 
-    const newEntry = {
-      id: Date.now() + Math.random(),
-      userIds: newBooking.userIds,
-      tripId: Number(newBooking.tripId),
-    };
+    const trip = trips.find((t) => t.id === newBooking.tripId);
+    if (!trip || trip.availableSeats < newBooking.userIds.length) {
+      alert('لا يوجد عدد كافٍ من المقاعد!');
+      return;
+    }
 
-    setBookings((prev) => [...prev, newEntry]);
+    const bookingDoc = await addDoc(bookingsCollection, {
+      userIds: newBooking.userIds,
+      tripId: newBooking.tripId,
+    });
+
+    await updateDoc(doc(db, 'trips', trip.id), {
+      availableSeats: trip.availableSeats - newBooking.userIds.length,
+    });
+
+    setBookings([...bookings, { id: bookingDoc.id, ...newBooking }]);
     setNewBooking({ userIds: [], tripId: '' });
     setShowAddModal(false);
   };
 
-  const deleteBooking = (id) => {
-    const updated = bookings.filter((b) => b.id !== id);
-    setBookings(updated);
+  const deleteBooking = async (id) => {
+    // حذف الحجز فقط من الواجهة
+    setBookings(bookings.filter((b) => b.id !== id));
+    // بإمكانك لاحقًا إضافة حذف من Firestore
   };
 
   const handleEdit = (booking) => {
     setEditingBooking(booking);
-    setEditedBooking({
-      userIds: booking.userIds,
-      tripId: booking.tripId,
-    });
+    setEditedBooking({ userIds: booking.userIds, tripId: booking.tripId });
   };
 
-  const saveChanges = () => {
-    if (!editedBooking.userIds.length || !editedBooking.tripId) return;
+  const saveChanges = async () => {
+    const original = bookings.find((b) => b.id === editingBooking.id);
+    const oldTrip = trips.find((t) => t.id === original.tripId);
+    const newTrip = trips.find((t) => t.id === editedBooking.tripId);
+
+    const oldCount = original.userIds.length;
+    const newCount = editedBooking.userIds.length;
+    const seatChange = newCount - oldCount;
+
+    if (newTrip.availableSeats < seatChange) {
+      alert('لا يوجد مقاعد كافية للتعديل');
+      return;
+    }
+
+    // خصم أو إعادة المقاعد
+    await updateDoc(doc(db, 'trips', newTrip.id), {
+      availableSeats: newTrip.availableSeats - seatChange,
+    });
+
+    // تحديث الحجز
+    const bookingRef = doc(db, 'bookings', editingBooking.id);
+    await updateDoc(bookingRef, {
+      userIds: editedBooking.userIds,
+      tripId: editedBooking.tripId,
+    });
 
     const updated = bookings.map((b) =>
-      b.id === editingBooking.id
-        ? { ...b, userIds: editedBooking.userIds, tripId: Number(editedBooking.tripId) }
-        : b
+      b.id === editingBooking.id ? { ...b, ...editedBooking } : b
     );
     setBookings(updated);
     setEditingBooking(null);
@@ -85,7 +117,6 @@ function Bookings() {
 
       <button className="open-add-btn" onClick={() => setShowAddModal(true)}>إضافة حجز</button>
 
-      {/* مودال الإضافة */}
       {showAddModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -102,7 +133,9 @@ function Bookings() {
             <select value={newBooking.tripId} onChange={(e) => setNewBooking({ ...newBooking, tripId: e.target.value })}>
               <option value="">اختر الرحلة</option>
               {trips.map((trip) => (
-                <option key={trip.id} value={trip.id}>{trip.destination} - {trip.date}</option>
+                <option key={trip.id} value={trip.id}>
+                  {trip.province} - {trip.date} ({trip.availableSeats} مقاعد متاحة)
+                </option>
               ))}
             </select>
 
@@ -114,7 +147,6 @@ function Bookings() {
         </div>
       )}
 
-      {/* جدول الحجوزات */}
       {bookings.length === 0 ? (
         <p>لا توجد حجوزات حالياً.</p>
       ) : (
@@ -133,18 +165,17 @@ function Bookings() {
           <tbody>
             {bookings.map((booking, index) => {
               const trip = trips.find(t => t.id === booking.tripId);
-              const bookingUsers = users.filter(u => booking.userIds.includes(u.id));
+              const bookingUsers = users.filter(u => Array.isArray(booking.userIds) && booking.userIds.includes(u.id));
 
               return (
                 <tr key={booking.id}>
                   <td>{index + 1}</td>
                   <td>{bookingUsers.map((u) => u.name).join('، ')}</td>
-                  <td>{trip?.destination || 'غير متوفر'}</td>
+                  <td>{trip?.province || 'غير متوفر'}</td>
                   <td>{trip?.date || 'غير متوفر'}</td>
-                  <td>{trip?.price || 'غير متوفر'}</td>
+                  <td>{trip?.price ? `${trip.price} ل.س` : 'غير متوفر'}</td>
                   <td><button className="edit-btn" onClick={() => handleEdit(booking)}>✏️ تعديل</button></td>
-<td><button className="delete-btn" onClick={() => deleteBooking(booking.id)}>🗑 حذف</button></td>
-
+                  <td><button className="delete-btn" onClick={() => deleteBooking(booking.id)}>🗑 حذف</button></td>
                 </tr>
               );
             })}
@@ -152,7 +183,6 @@ function Bookings() {
         </table>
       )}
 
-      {/* مودال التعديل */}
       {editingBooking && (
         <div className="edit-modal">
           <div className="modal-content">
@@ -169,7 +199,7 @@ function Bookings() {
             <select value={editedBooking.tripId} onChange={(e) => setEditedBooking({ ...editedBooking, tripId: e.target.value })}>
               <option value="">اختر الرحلة</option>
               {trips.map((trip) => (
-                <option key={trip.id} value={trip.id}>{trip.destination} - {trip.date}</option>
+                <option key={trip.id} value={trip.id}>{trip.province} - {trip.date}</option>
               ))}
             </select>
 

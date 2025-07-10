@@ -1,41 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import './Users.css';
+import { db } from './firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  doc,
+  updateDoc,
+  serverTimestamp
+} from 'firebase/firestore';
 
 function Users() {
-  const [users, setUsers] = useState(() => {
-    const savedUsers = localStorage.getItem('users');
-    return savedUsers
-      ? JSON.parse(savedUsers)
-      : [
-          { id: 1, name: 'أحمد', email: 'ahmed@example.com', phone: '0999123456' },
-          { id: 2, name: 'سارة', email: 'sara@example.com', phone: '0987654321' },
-        ];
-  });
-
+  const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', phone: '' });
-
   const [editingUser, setEditingUser] = useState(null);
   const [editedUser, setEditedUser] = useState({ name: '', email: '', phone: '' });
 
+  const usersCollection = collection(db, 'users');
+
+  // جلب المستخدمين من Firestore
   useEffect(() => {
-    localStorage.setItem('users', JSON.stringify(users));
-  }, [users]);
+    const fetchUsers = async () => {
+      const snapshot = await getDocs(usersCollection);
+      const usersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setUsers(usersData);
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleChange = (e) => {
     setNewUser({ ...newUser, [e.target.name]: e.target.value });
   };
 
-  const addUser = () => {
+  const addUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.phone) return;
 
-    const newId = users.length ? Math.max(...users.map((u) => u.id)) + 1 : 1;
-    setUsers([...users, { id: newId, ...newUser }]);
+    const docRef = await addDoc(usersCollection, {
+      ...newUser,
+      createdAt: serverTimestamp()
+    });
+
+    setUsers([...users, { id: docRef.id, ...newUser }]);
     setNewUser({ name: '', email: '', phone: '' });
     setShowForm(false);
   };
 
-  const deleteUser = (id) => {
+  const deleteUser = async (id) => {
+    await deleteDoc(doc(db, 'users', id));
     setUsers(users.filter((user) => user.id !== id));
   };
 
@@ -44,7 +61,10 @@ function Users() {
     setEditedUser({ name: user.name, email: user.email, phone: user.phone });
   };
 
-  const saveChanges = () => {
+  const saveChanges = async () => {
+    const userRef = doc(db, 'users', editingUser.id);
+    await updateDoc(userRef, editedUser);
+
     const updatedUsers = users.map((u) =>
       u.id === editingUser.id ? { ...u, ...editedUser } : u
     );
@@ -101,15 +121,15 @@ function Users() {
         <tbody>
           {users.map((user) => (
             <tr key={user.id}>
-              <td>{user.id}</td>
+              <td>{user.id.slice(0, 6)}...</td>
               <td>{user.name}</td>
               <td>{user.email}</td>
               <td>{user.phone}</td>
               <td>
-              <button className="edit-btn" onClick={() => handleEdit(user)}>✏️ تعديل</button>
+                <button className="edit-btn" onClick={() => handleEdit(user)}>✏️ تعديل</button>
               </td>
               <td>
-              <button className="delete-btn" onClick={() => deleteUser(user.id)}>🗑 حذف</button>
+                <button className="delete-btn" onClick={() => deleteUser(user.id)}>🗑 حذف</button>
               </td>
             </tr>
           ))}
