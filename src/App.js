@@ -7,7 +7,7 @@ import Statistics from "./pages/Statistics";
 import Bookings from "./pages/Bookings";
 import Login from "./pages/Login";
 import RequireAdmin from "./components/RequireAdmin";
-
+import ManageEntries from "./pages/ManageEntries";
 function App() {
   return (
     <Router>
@@ -27,6 +27,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="trips" element={<Trips />} />
           <Route path="statistics" element={<Statistics />} />
+          <Route path="/manage" element={<ManageEntries />} />ٍ
           <Route path="bookings" element={<Bookings />} />
         </Route>
       </Routes>

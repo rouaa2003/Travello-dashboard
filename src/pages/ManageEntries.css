@@ -1,0 +1,166 @@
+.manage-entries-container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px;
+  font-family: "Cairo", sans-serif;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  direction: rtl;
+}
+
+.manage-entries-container h2 {
+  text-align: center;
+  color: #00892e;
+  margin-bottom: 20px;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  margin-bottom: 25px;
+  gap: 10px;
+  padding: 10px;
+  flex-wrap: wrap;
+}
+
+.tabs button {
+  background-color: #eee;
+  border: none;
+
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-weight: bold;
+  color: #555;
+  font-size: 1.2rem;
+  padding: 15px 20px;
+}
+
+.tabs button.active {
+  background-color: #00892e;
+  color: white;
+}
+
+.search-bar {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.search-bar input {
+  padding: 8px 12px;
+  width: 50%;
+  max-width: 400px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+table th,
+table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: center;
+}
+
+table th {
+  background-color: #00892e;
+  color: white;
+}
+
+table tr:hover {
+  background-color: #f0f0f0;
+}
+
+table img {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.edit-btn {
+  background-color: #f0ad4e;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.edit-btn:hover {
+  background-color: #ec971f;
+}
+
+.edit-form {
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-form h3 {
+  color: #00892e;
+  margin-bottom: 10px;
+}
+
+.edit-form label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.edit-form input,
+.edit-form textarea,
+.edit-form select {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.edit-form button {
+  margin-top: 15px;
+  background-color: #00892e;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.edit-form button:hover {
+  background-color: #006c25;
+}
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 15px;
+  margin-bottom: 25px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.2s ease;
+  display: block;
+  margin: 25px auto;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #00892e;
+  box-shadow: 0 0 0 2px rgba(0, 137, 46, 0.2);
+}

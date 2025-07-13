@@ -18,6 +18,7 @@ function Sidebar() {
         <NavLink to="/users">المستخدمين</NavLink>
         <NavLink to="/trips">الرحلات الجاهزة</NavLink>
         <NavLink to="/bookings">الحجوزات</NavLink>
+        <NavLink to="/manage">إدارة المدخلات</NavLink>
         <NavLink to="/statistics">الإحصائيات</NavLink>
         <button className="logout-btn" onClick={handleLogout}>
           تسجيل الخروج
