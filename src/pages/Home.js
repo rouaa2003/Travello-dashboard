@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import './Home.css';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import React, { useEffect, useState } from "react";
+import "./Home.css";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "./firebase";
 
 function Home() {
   const [userCount, setUserCount] = useState(0);
@@ -12,25 +12,30 @@ function Home() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const tripsSnapshot = await getDocs(collection(db, 'trips'));
-      const bookingsSnapshot = await getDocs(collection(db, 'bookings'));
+      const usersSnapshot = await getDocs(collection(db, "users"));
+      const tripsSnapshot = await getDocs(collection(db, "trips"));
+      const bookingsSnapshot = await getDocs(collection(db, "bookings"));
 
-      const users = usersSnapshot.docs.map(doc => doc.data());
-      const trips = tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const bookings = bookingsSnapshot.docs.map(doc => doc.data());
+      const users = usersSnapshot.docs.map((doc) => doc.data());
+      const trips = tripsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      const bookings = bookingsSnapshot.docs.map((doc) => doc.data());
 
       setUserCount(users.length);
       setTripCount(trips.length);
       setBookingCount(bookings.length);
 
       // ترتيب الرحلات حسب التاريخ نزولاً
-      const sortedTrips = [...trips].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const sortedTrips = [...trips].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
       setRecentTrips(sortedTrips.slice(0, 5));
 
       // عدد رحلات اليوم
-      const today = new Date().toISOString().split('T')[0];
-      const todayTrips = trips.filter(trip => trip.date === today);
+      const today = new Date().toISOString().split("T")[0];
+      const todayTrips = trips.filter((trip) => trip.date === today);
       setTodayTripsCount(todayTrips.length);
     };
 
@@ -66,7 +71,7 @@ function Home() {
         {recentTrips.length === 0 ? (
           <p>لا توجد رحلات.</p>
         ) : (
-          <table>
+          <table className="recent-trips-table">
             <thead>
               <tr>
                 <th>الوجهة</th>
@@ -75,11 +80,15 @@ function Home() {
               </tr>
             </thead>
             <tbody>
-              {recentTrips.map(trip => (
+              {recentTrips.map((trip) => (
                 <tr key={trip.id}>
                   <td>{trip.province}</td>
-                  <td>{trip.date}</td>
-                  <td>{trip.price}</td>
+                  <td>
+                    {trip.date?.toDate
+                      ? trip.date.toDate().toLocaleDateString()
+                      : trip.date}
+                  </td>
+                  <td>{trip.price ? `${trip.price} ل.س` : "غير متوفر"}</td>
                 </tr>
               ))}
             </tbody>

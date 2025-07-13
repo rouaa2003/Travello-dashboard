@@ -1,66 +1,69 @@
+/* Sidebar.css */
+
 .sidebar {
-  direction: ltr; /* LTR للوحة الجانبية */
-  width: 220px;
+  width: 230px;
   height: 100vh;
-  background-color: #1e1e2f;
+  background-color: #00892e;
   color: white;
-  padding: 20px;
-  position: fixed;
-  left: 0; /* نقلناها لليسار */
-  top: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  padding: 25px 15px;
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
 }
 
-.sidebar .logo {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 30px;
+.logo {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 35px;
   text-align: center;
-  color: #ffffff;
+  letter-spacing: 1.2px;
+  cursor: default;
+  color: #e2f0d9;
 }
 
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
 }
 
 .sidebar nav a {
-  color: #ccc;
   text-decoration: none;
+  color: #d4f0c3;
+  font-weight: 600;
+  font-size: 1.1rem;
   padding: 10px 15px;
-  border-radius: 5px;
-  transition: background-color 0.3s;
-  text-align: left; /* محاذاة لليسار */
- 
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+  text-align: center;
 }
 
+.sidebar nav a.active,
 .sidebar nav a:hover {
-  background-color: #333856;
-  color: #fff;
-}
-
-.sidebar nav a.active {
-  background-color: #4a4e69;
-  color: #fff;
-  font-weight: bold;
+  background-color: #0a6d17;
+  color: #ffffff;
+  box-shadow: 0 0 10px #0a6d17aa;
 }
 
 .logout-btn {
-  margin-top: 20px;
-  background-color: #ff4d4f;
-  color: white;
+  margin-top: auto;
+  background-color: #bb2929;
   border: none;
-  padding: 10px;
-  border-radius: 5px;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.3s;
-  text-align: left;
-  font-family: 'Arial', sans-serif;
+  transition: background-color 0.3s ease;
+  text-align: center;
 }
 
 .logout-btn:hover {
-  background-color: #e33e3e;
+  background-color: #d83737;
+  box-shadow: 0 0 12px #d83737cc;
 }

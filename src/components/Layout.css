@@ -1,12 +1,24 @@
 .layout-container {
   display: flex;
-  direction: ltr;
+
   min-height: 100vh;
 }
 
 .page-content {
   flex: 1;
   padding: 20px;
-  margin-left: 235px;
   background-color: #f9f9f9;
+  overflow-x: hidden;
+}
+
+/* تأكد أن Sidebar له عرض ثابت */
+.sidebar {
+  width: 235px;
+  background-color: #00892e;
+  color: white;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
 }
