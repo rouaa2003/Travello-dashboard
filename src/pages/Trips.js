@@ -3,32 +3,30 @@ import { db } from "./firebase";
 import {
   collection,
   getDocs,
-  addDoc,
   deleteDoc,
-  updateDoc,
   doc,
-  serverTimestamp,
+  updateDoc,
+  Timestamp,
 } from "firebase/firestore";
 import "./Trips.css";
+
 function Trips() {
   const [trips, setTrips] = useState([]);
-  const [newTrip, setNewTrip] = useState({
-    province: "",
-    date: "",
-    price: "",
-    maxSeats: "",
-  });
-  const [showForm, setShowForm] = useState(false);
-  const [editingTrip, setEditingTrip] = useState(null);
-  const [editedTrip, setEditedTrip] = useState({
-    province: "",
-    date: "",
-    price: "",
-    maxSeats: "",
-  });
+  const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [selectedTrip, setSelectedTrip] = useState(null);
+  const [places, setPlaces] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
+  const [filterCity, setFilterCity] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [editedSeats, setEditedSeats] = useState(0);
+  const [editedDate, setEditedDate] = useState("");
+  const [editedDuration, setEditedDuration] = useState(1);
 
   const tripsCollection = collection(db, "trips");
 
@@ -48,234 +46,184 @@ function Trips() {
       }
       setLoading(false);
     };
+
+    const fetchCities = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "cities"));
+        const cityList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setCities(cityList);
+      } catch (err) {
+        console.error("فشل تحميل المدن:", err);
+      }
+    };
+
     fetchTrips();
+    fetchCities();
   }, []);
 
-  const handleChange = (e) => {
-    setNewTrip({ ...newTrip, [e.target.name]: e.target.value });
-  };
-
-  const handleEditChange = (e) => {
-    setEditedTrip({ ...editedTrip, [e.target.name]: e.target.value });
-  };
-
-  const validateTrip = (trip) => {
-    if (!trip.province || !trip.date || !trip.price || !trip.maxSeats) {
-      setError("جميع الحقول مطلوبة.");
-      return false;
-    }
-    if (Number(trip.price) <= 0 || Number(trip.maxSeats) <= 0) {
-      setError("السعر وعدد المقاعد يجب أن يكون أكبر من صفر.");
-      return false;
-    }
-    if (new Date(trip.date) < new Date().setHours(0, 0, 0, 0)) {
-      setError("يجب أن يكون تاريخ الرحلة في المستقبل.");
-      return false;
-    }
-    return true;
-  };
-
-  const addTrip = async () => {
-    setMessage("");
-    setError("");
-    if (!validateTrip(newTrip)) return;
-
-    setLoading(true);
+  const formatDate = (timestamp) => {
     try {
-      const docRef = await addDoc(tripsCollection, {
-        ...newTrip,
-        price: Number(newTrip.price),
-        maxSeats: Number(newTrip.maxSeats),
-        availableSeats: Number(newTrip.maxSeats),
-        createdAt: serverTimestamp(),
+      return timestamp?.toDate().toLocaleDateString("ar-SY", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
       });
-      setTrips([
-        ...trips,
-        {
-          id: docRef.id,
-          ...newTrip,
-          price: Number(newTrip.price),
-          maxSeats: Number(newTrip.maxSeats),
-          availableSeats: Number(newTrip.maxSeats),
-        },
-      ]);
-      setNewTrip({ province: "", date: "", price: "", maxSeats: "" });
-      setShowForm(false);
-      setMessage("تم إضافة الرحلة بنجاح.");
-    } catch (err) {
-      console.error("فشل إضافة الرحلة:", err);
-      setError("فشل إضافة الرحلة.");
+    } catch {
+      return "-";
     }
-    setLoading(false);
   };
 
-  const deleteTrip = async (id) => {
-    const confirmed = window.confirm("هل أنت متأكد من حذف هذه الرحلة؟");
-    if (!confirmed) return;
+  const getCityNames = (ids) => {
+    if (!Array.isArray(ids)) return "";
+    return ids
+      .map((id) => cities.find((city) => city.id === id)?.name || id)
+      .join(", ");
+  };
 
-    setLoading(true);
-    try {
-      await deleteDoc(doc(db, "trips", id));
-      setTrips(trips.filter((trip) => trip.id !== id));
-      setMessage("تم حذف الرحلة.");
-    } catch (err) {
-      console.error("فشل حذف الرحلة:", err);
-      setError("فشل حذف الرحلة.");
+  const fetchCollectionByIds = async (collectionName, ids) => {
+    if (!ids || !ids.length) return [];
+    const snapshot = await getDocs(collection(db, collectionName));
+    return snapshot.docs
+      .filter((doc) => ids.includes(doc.id))
+      .map((doc) => ({ id: doc.id, ...doc.data() }));
+  };
+
+  const openDetails = async (trip) => {
+    setSelectedTrip(null);
+    const [pl, rs, ho, hs] = await Promise.all([
+      fetchCollectionByIds("places", trip.selectedPlaceIds),
+      fetchCollectionByIds("restaurants", trip.selectedRestaurantIds),
+      fetchCollectionByIds("hotels", trip.selectedHotelIds),
+      fetchCollectionByIds("hospitals", trip.selectedHospitalIds),
+    ]);
+    setPlaces(pl);
+    setRestaurants(rs);
+    setHotels(ho);
+    setHospitals(hs);
+    setSelectedTrip(trip);
+    setEditMode(false);
+  };
+
+  const handleDelete = async (tripId) => {
+    if (window.confirm("هل أنت متأكد من حذف هذه الرحلة؟")) {
+      try {
+        await deleteDoc(doc(db, "trips", tripId));
+        setTrips((prev) => prev.filter((t) => t.id !== tripId));
+        setMessage("تم حذف الرحلة بنجاح.");
+      } catch (err) {
+        console.error("فشل في حذف الرحلة:", err);
+        setError("فشل في حذف الرحلة.");
+      }
     }
-    setLoading(false);
   };
 
   const handleEdit = (trip) => {
-    setError("");
-    setMessage("");
-    setEditingTrip(trip);
-    setEditedTrip({
-      province: trip.province,
-      date: trip.date,
-      price: trip.price,
-      maxSeats: trip.maxSeats || "",
-    });
+    setEditedSeats(trip.maxSeats);
+    setEditedDate(trip.tripDate?.toDate().toISOString().split("T")[0] || "");
+    setEditedDuration(trip.tripDuration);
+    setSelectedTrip(trip);
+    setEditMode(true);
   };
 
-  const saveChanges = async () => {
-    setMessage("");
-    setError("");
-    if (!validateTrip(editedTrip)) return;
-
-    setLoading(true);
+  const saveEdit = async () => {
     try {
-      const tripRef = doc(db, "trips", editingTrip.id);
-      await updateDoc(tripRef, {
-        ...editedTrip,
-        price: Number(editedTrip.price),
-        maxSeats: Number(editedTrip.maxSeats),
+      await updateDoc(doc(db, "trips", selectedTrip.id), {
+        maxSeats: editedSeats,
+        tripDate: Timestamp.fromDate(new Date(editedDate)),
+        tripDuration: editedDuration,
       });
-
-      const updatedTrips = trips.map((t) =>
-        t.id === editingTrip.id ? { ...t, ...editedTrip } : t
+      setTrips((prev) =>
+        prev.map((t) =>
+          t.id === selectedTrip.id
+            ? {
+                ...t,
+                maxSeats: editedSeats,
+                tripDate: Timestamp.fromDate(new Date(editedDate)),
+                tripDuration: editedDuration,
+              }
+            : t
+        )
       );
-      setTrips(updatedTrips);
-      setEditingTrip(null);
-      setMessage("تم تحديث الرحلة بنجاح.");
+      setMessage("تم تعديل الرحلة بنجاح.");
+      setSelectedTrip(null);
+      setEditMode(false);
     } catch (err) {
       console.error("فشل تعديل الرحلة:", err);
       setError("فشل تعديل الرحلة.");
     }
-    setLoading(false);
   };
 
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    return d.toLocaleDateString("ar-SY");
-  };
+  const filteredTrips = trips.filter((trip) => {
+    const matchesCity =
+      !filterCity || trip.selectedCityIds?.includes(filterCity);
+    const matchesDate =
+      !filterDate ||
+      (trip.tripDate &&
+        trip.tripDate.toDate().toISOString().split("T")[0] === filterDate);
+    return matchesCity && matchesDate;
+  });
 
   return (
     <div className="trips-page">
-      <h1 className="hhh">إدارة الرحلات الجاهزة</h1>
-
-      <button
-        className="add-btn"
-        onClick={() => {
-          setShowForm(!showForm);
-          setMessage("");
-          setError("");
-        }}
-        disabled={loading}
-      >
-        {showForm ? "إغلاق النموذج" : "+ إضافة رحلة"}
-      </button>
+      <h1 className="hhh">إدارة الرحلات</h1>
 
       {message && <p className="success-msg">{message}</p>}
       {error && <p className="error-msg">{error}</p>}
 
-      {showForm && (
-        <div className="form-container">
-          <input
-            type="text"
-            name="province"
-            placeholder="الوجهة"
-            value={newTrip.province}
-            onChange={handleChange}
-            disabled={loading}
-          />
-          <input
-            type="date"
-            name="date"
-            value={newTrip.date}
-            onChange={handleChange}
-            disabled={loading}
-          />
-          <input
-            type="number"
-            min="1"
-            name="price"
-            placeholder="السعر"
-            value={newTrip.price}
-            onChange={handleChange}
-            disabled={loading}
-          />
-          <input
-            type="number"
-            min="1"
-            name="maxSeats"
-            placeholder="عدد المقاعد"
-            value={newTrip.maxSeats}
-            onChange={handleChange}
-            disabled={loading}
-          />
-
-          <button className="add-btn" onClick={addTrip} disabled={loading}>
-            {loading ? "جاري الإضافة..." : "إضافة"}
-          </button>
-        </div>
-      )}
-
-      {loading && !showForm && <p>...جاري تحميل البيانات</p>}
+      <div className="filters">
+        <select
+          value={filterCity}
+          onChange={(e) => setFilterCity(e.target.value)}
+        >
+          <option value="">كل المدن</option>
+          {cities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+        />
+      </div>
 
       <table>
         <thead>
           <tr>
-            <th>الرقم</th>
-            <th>الوجهة</th>
+            <th>المدن</th>
             <th>تاريخ الرحلة</th>
-            <th>السعر (ل.س)</th>
-            <th>العدد الكلي</th>
+            <th>المدة</th>
+            <th>المقاعد الكلية</th>
             <th>المقاعد المتاحة</th>
-            <th>تعديل</th>
-            <th>حذف</th>
+            <th>تاريخ الإضافة</th>
+            <th>الخيارات</th>
           </tr>
         </thead>
         <tbody>
-          {trips.length === 0 && !loading && (
-            <tr>
-              <td colSpan="8" style={{ textAlign: "center" }}>
-                لا توجد رحلات
-              </td>
-            </tr>
-          )}
-          {trips.map((trip, index) => (
+          {filteredTrips.map((trip) => (
             <tr key={trip.id}>
-              <td>{index + 1}</td>
-              <td>{trip.province}</td>
-              <td>{formatDate(trip.date)}</td>
-              <td>{Number(trip.price).toLocaleString("ar-SY")}</td>
+              <td>{getCityNames(trip.selectedCityIds)}</td>
+              <td>{formatDate(trip.tripDate)}</td>
+              <td>{trip.tripDuration} يوم</td>
               <td>{trip.maxSeats}</td>
-              <td>{trip.availableSeats}</td>
+              <td>{trip.availableSeats ?? trip.maxSeats}</td>
+              <td>{formatDate(trip.createdAt)}</td>
               <td>
-                <button
-                  className="edit-btn"
-                  onClick={() => handleEdit(trip)}
-                  disabled={loading}
-                >
+                <button className="show-btn" onClick={() => openDetails(trip)}>
+                  📄عرض التفاصيل
+                </button>
+                <button className="edit-btn-l" onClick={() => handleEdit(trip)}>
                   ✏️ تعديل
                 </button>
-              </td>
-              <td>
                 <button
-                  className="delete-btn"
-                  onClick={() => deleteTrip(trip.id)}
-                  disabled={loading}
+                  className="delete-btn-l"
+                  onClick={() => handleDelete(trip.id)}
                 >
                   🗑 حذف
                 </button>
@@ -285,49 +233,93 @@ function Trips() {
         </tbody>
       </table>
 
-      {editingTrip && (
-        <div className="edit-modal">
-          <div className="modal-content">
-            <h3>تعديل الرحلة</h3>
-            <input
-              type="text"
-              name="province"
-              value={editedTrip.province}
-              onChange={handleEditChange}
-              disabled={loading}
-            />
+      {editMode && selectedTrip && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>✏️ تعديل معلومات الرحلة</h3>
+
+            <label>📅 تاريخ الرحلة:</label>
             <input
               type="date"
-              name="date"
-              value={editedTrip.date}
-              onChange={handleEditChange}
-              disabled={loading}
+              value={editedDate}
+              onChange={(e) => setEditedDate(e.target.value)}
             />
-            <input
-              type="number"
-              min="1"
-              name="price"
-              value={editedTrip.price}
-              onChange={handleEditChange}
-              disabled={loading}
-            />
-            <input
-              type="number"
-              min="1"
-              name="maxSeats"
-              value={editedTrip.maxSeats}
-              onChange={handleEditChange}
-              disabled={loading}
-            />
-            {error && <p className="error-msg">{error}</p>}
-            {message && <p className="success-msg">{message}</p>}
 
-            <button onClick={saveChanges} disabled={loading}>
-              {loading ? "جاري الحفظ..." : "حفظ"}
-            </button>
-            <button onClick={() => setEditingTrip(null)} disabled={loading}>
-              إلغاء
-            </button>
+            <label>⏳ المدة (بالأيام):</label>
+            <input
+              type="number"
+              min="1"
+              value={editedDuration}
+              onChange={(e) => setEditedDuration(Number(e.target.value))}
+            />
+
+            <label>🪑 عدد المقاعد:</label>
+            <input
+              type="number"
+              min="1"
+              value={editedSeats}
+              onChange={(e) => setEditedSeats(Number(e.target.value))}
+            />
+
+            <div className="modal-actions">
+              <button className="save-btn" onClick={saveEdit}>
+                💾 حفظ التعديل
+              </button>
+              <button
+                className="cancel-btn"
+                onClick={() => {
+                  setEditMode(false);
+                  setSelectedTrip(null);
+                }}
+              >
+                ❌ إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedTrip && !editMode && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>تفاصيل الرحلة</h2>
+            <p>
+              <strong>المدن:</strong>{" "}
+              {getCityNames(selectedTrip.selectedCityIds)}
+            </p>
+            <p>
+              <strong>التاريخ:</strong> {formatDate(selectedTrip.tripDate)}
+            </p>
+            <p>
+              <strong>المدة:</strong> {selectedTrip.tripDuration} يوم
+            </p>
+            <p>
+              <strong>المقاعد الكلية:</strong> {selectedTrip.maxSeats}
+            </p>
+            <p>
+              <strong>المقاعد المتاحة:</strong>{" "}
+              {selectedTrip.availableSeats ?? selectedTrip.maxSeats}
+            </p>
+
+            <hr />
+            <p>
+              <strong>الأماكن السياحية:</strong>{" "}
+              {places.map((p) => p.name).join(", ") || "لا يوجد"}
+            </p>
+            <p>
+              <strong>المطاعم:</strong>{" "}
+              {restaurants.map((r) => r.name).join(", ") || "لا يوجد"}
+            </p>
+            <p>
+              <strong>الفنادق:</strong>{" "}
+              {hotels.map((h) => h.name).join(", ") || "لا يوجد"}
+            </p>
+            <p>
+              <strong>المستشفيات:</strong>{" "}
+              {hospitals.map((h) => h.name).join(", ") || "لا يوجد"}
+            </p>
+
+            <button onClick={() => setSelectedTrip(null)}>إغلاق</button>
           </div>
         </div>
       )}

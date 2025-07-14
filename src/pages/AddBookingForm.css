@@ -1,0 +1,31 @@
+.add-btn {
+  background-color: #00892e;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+.add-btn:hover {
+  background-color: #007a28;
+}
+
+.delete-btn {
+  background-color: #ff4d4d;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+.delete-btn:hover {
+  background-color: #cc0000;
+}
+#root > div > div.page-content > div > div > div > div > input[type="number"] {
+  display: inline;
+  width: 20%;
+  margin: 10px;
+  padding: 6px;
+  border-radius: 6px;
+  border: "1px solid #ccc";
+}

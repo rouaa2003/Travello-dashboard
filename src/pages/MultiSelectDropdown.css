@@ -1,0 +1,124 @@
+.multi-select-dropdown {
+  margin: 15px auto;
+  position: relative;
+  width: 300px;
+  direction: rtl;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.dropdown-btn {
+  width: 100%;
+  background: white;
+  border: 1.5px solid #00892e;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-weight: 600;
+  color: #00892e;
+  cursor: pointer;
+  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 6px rgb(0 137 46 / 0.2);
+  transition: background-color 0.3s ease;
+}
+
+.dropdown-btn:hover {
+  background-color: #d4ebd4;
+}
+
+.arrow {
+  margin-left: 10px;
+  font-size: 12px;
+  transition: transform 0.3s ease;
+}
+
+.arrow.open {
+  transform: rotate(180deg);
+}
+
+.dropdown-list {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  width: 100%;
+  background: white;
+  border: 1.5px solid #00892e;
+  border-radius: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  box-shadow: 0 8px 15px rgb(0 137 46 / 0.3);
+  z-index: 1000;
+}
+
+.dropdown-item {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 8px 15px;
+  cursor: pointer;
+  color: #005a17;
+  font-weight: 600;
+  user-select: none;
+  border-bottom: 1px solid #e3f4e3;
+  position: relative;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item input[type="checkbox"] {
+  margin-left: 10px;
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background-color: #e6f4e6;
+}
+
+.dropdown-item.selected {
+  background-color: #c5e6c5;
+  font-weight: bold;
+}
+.selected-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkmark {
+  color: #00892e;
+  font-weight: bold;
+  margin-left: 5px;
+  user-select: none;
+}
+
+.search-input {
+  padding: 10px;
+  width: 278px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  font-size: 1rem;
+  border: 1.5px solid #00892e;
+  border-radius: 8px;
+  box-shadow: 0 8px 15px rgb(0 137 46 / 0.3);
+  text-align: right;
+}
+
+.city-img {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.check {
+  margin-left: auto;
+  color: #00892e;
+  font-weight: bold;
+}

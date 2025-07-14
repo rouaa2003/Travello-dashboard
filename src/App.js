@@ -8,6 +8,7 @@ import Bookings from "./pages/Bookings";
 import Login from "./pages/Login";
 import RequireAdmin from "./components/RequireAdmin";
 import ManageEntries from "./pages/ManageEntries";
+import AddTripPage from "./pages/AddTripPage";
 function App() {
   return (
     <Router>
@@ -26,6 +27,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="users" element={<Users />} />
           <Route path="trips" element={<Trips />} />
+          <Route path="/add-trip" element={<AddTripPage />} />
           <Route path="statistics" element={<Statistics />} />
           <Route path="/manage" element={<ManageEntries />} />ٍ
           <Route path="bookings" element={<Bookings />} />

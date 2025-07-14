@@ -5,63 +5,82 @@ import { db } from "./firebase";
 
 function Statistics() {
   const [usersCount, setUsersCount] = useState(0);
-  const [tripsCount, setTripsCount] = useState(0);
+  const [readyTripsCount, setReadyTripsCount] = useState(0);
+  const [customTripsCount, setCustomTripsCount] = useState(0);
   const [provinceCounts, setProvinceCounts] = useState({});
   const [topProvince, setTopProvince] = useState(null);
-
   const [provinceBookingCounts, setProvinceBookingCounts] = useState({});
   const [topBookingProvince, setTopBookingProvince] = useState(null);
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const usersSnapshot = await getDocs(collection(db, "users"));
-      const tripsSnapshot = await getDocs(collection(db, "trips"));
-      const bookingsSnapshot = await getDocs(collection(db, "bookings"));
 
-      const users = usersSnapshot.docs.map((doc) => doc.data());
-      const trips = tripsSnapshot.docs.map((doc) => ({
+      const usersSnap = await getDocs(collection(db, "users"));
+      const tripsSnap = await getDocs(collection(db, "trips"));
+      const bookingsSnap = await getDocs(collection(db, "bookings"));
+
+      const users = usersSnap.docs.map((doc) => doc.data());
+      const trips = tripsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      const bookings = bookingsSnapshot.docs.map((doc) => doc.data());
+      const bookings = bookingsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
       setUsersCount(users.length);
-      setTripsCount(trips.length);
 
-      const counts = {};
-      trips.forEach((trip) => {
-        if (trip.province) {
-          counts[trip.province] = (counts[trip.province] || 0) + 1;
+      const readyTrips = trips;
+      const customTrips = bookings.filter((b) => b.customTrip);
+
+      setReadyTripsCount(readyTrips.length);
+      setCustomTripsCount(customTrips.length);
+
+      // === إحصائيات الرحلات حسب المحافظة ===
+      const cityCounts = {};
+
+      [...readyTrips, ...customTrips].forEach((trip) => {
+        const cities = trip.selectedCityIds || [];
+        const mainCity = cities[0];
+        if (mainCity) {
+          cityCounts[mainCity] = (cityCounts[mainCity] || 0) + 1;
         }
       });
-      setProvinceCounts(counts);
 
-      const top = Object.entries(counts).reduce(
-        (acc, [province, count]) =>
-          count > acc.count ? { province, count } : acc,
-        { province: "لا توجد بيانات", count: 0 }
+      setProvinceCounts(cityCounts);
+
+      const top = Object.entries(cityCounts).reduce(
+        (acc, [city, count]) => (count > acc.count ? { city, count } : acc),
+        { city: "لا توجد بيانات", count: 0 }
       );
-      setTopProvince(top.province);
+      setTopProvince(top.city);
 
-      const bookingCounts = {};
+      // === إحصائيات الحجوزات حسب المحافظة ===
+      const bookingCityCounts = {};
+
       bookings.forEach((booking) => {
-        const trip = trips.find((t) => t.id === booking.tripId);
-        if (trip && trip.province) {
-          bookingCounts[trip.province] =
-            (bookingCounts[trip.province] || 0) + 1;
+        const trip =
+          booking.customTrip === true
+            ? booking
+            : trips.find((t) => t.id === booking.tripId);
+
+        const cities = trip?.selectedCityIds || [];
+        const mainCity = cities[0];
+        if (mainCity) {
+          bookingCityCounts[mainCity] = (bookingCityCounts[mainCity] || 0) + 1;
         }
       });
-      setProvinceBookingCounts(bookingCounts);
 
-      const topBooking = Object.entries(bookingCounts).reduce(
-        (acc, [province, count]) =>
-          count > acc.count ? { province, count } : acc,
-        { province: "لا توجد بيانات", count: 0 }
+      setProvinceBookingCounts(bookingCityCounts);
+
+      const topBooking = Object.entries(bookingCityCounts).reduce(
+        (acc, [city, count]) => (count > acc.count ? { city, count } : acc),
+        { city: "لا توجد بيانات", count: 0 }
       );
-      setTopBookingProvince(topBooking.province);
+      setTopBookingProvince(topBooking.city);
 
       setLoading(false);
     };
@@ -69,7 +88,7 @@ function Statistics() {
     fetchData();
   }, []);
 
-  if (loading) return <p>جارٍ التحميل...</p>;
+  if (loading) return <p>جارٍ تحميل البيانات...</p>;
 
   return (
     <div className="stats-page" dir="rtl">
@@ -82,8 +101,13 @@ function Statistics() {
         </div>
 
         <div className="stat-box trips">
-          <h3>عدد الرحلات</h3>
-          <p>{tripsCount}</p>
+          <h3>عدد الرحلات الجاهزة</h3>
+          <p>{readyTripsCount}</p>
+        </div>
+
+        <div className="stat-box trips">
+          <h3>عدد الرحلات المخصصة</h3>
+          <p>{customTripsCount}</p>
         </div>
 
         <div className="stat-box top-province">
