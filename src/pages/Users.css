@@ -48,8 +48,11 @@
 }
 
 .form-container {
+  align-items: center;
+  justify-content: center;
   margin-bottom: 30px;
   display: flex;
+  flex-direction: column;
   gap: 18px;
   flex-wrap: wrap;
   justify-content: center;
@@ -236,7 +239,7 @@ button.delete-btn:hover:not(:disabled) {
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.modal-content input:focus {
+.modal-content input:focus not .lll input:focus {
   outline: none;
   border-color: #00892e;
   box-shadow: 0 0 12px rgba(0, 137, 46, 0.6);
@@ -297,4 +300,34 @@ button.delete-btn:hover:not(:disabled) {
   font-weight: 600;
   text-align: center;
   user-select: none;
+}
+.select-city {
+  width: 240px;
+}
+.edit-modal select {
+  display: block;
+  margin: 14px auto;
+  padding: 14px 18px;
+  width: 90%;
+  font-size: 15px;
+  border: 2px solid #c8e6c9;
+  border-radius: 16px;
+  box-sizing: border-box;
+  color: #1a1a1a;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.lll {
+  direction: rtl;
+  display: inline;
+}
+
+.lll input {
+  display: inline;
+
+  width: 10%;
+
+  border: none;
+  box-sizing: unset;
+  height: 20px;
+  color: #00892e;
 }

@@ -1,6 +1,8 @@
+// الملف المعدل: Users.js
+
 import React, { useState, useEffect } from "react";
 import "./Users.css";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import {
   collection,
   getDocs,
@@ -10,6 +12,13 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import {
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  getAuth,
+} from "firebase/auth";
 
 function Users() {
   const [users, setUsers] = useState([]);
@@ -18,6 +27,7 @@ function Users() {
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
+    password: "",
     cityId: "",
   });
   const [editingUser, setEditingUser] = useState(null);
@@ -26,6 +36,8 @@ function Users() {
     email: "",
     cityId: "",
     isAdmin: false,
+    oldPassword: "",
+    newPassword: "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -34,7 +46,6 @@ function Users() {
   const usersCollection = collection(db, "users");
   const citiesCollection = collection(db, "cities");
 
-  // جلب المستخدمين
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -45,13 +56,11 @@ function Users() {
       }));
       setUsers(usersData);
     } catch (err) {
-      console.error("فشل جلب المستخدمين:", err);
       setError("فشل جلب بيانات المستخدمين.");
     }
     setLoading(false);
   };
 
-  // جلب المدن
   const fetchCities = async () => {
     try {
       const snapshot = await getDocs(citiesCollection);
@@ -60,9 +69,7 @@ function Users() {
         ...doc.data(),
       }));
       setCities(citiesData);
-    } catch (err) {
-      console.error("فشل جلب المدن:", err);
-    }
+    } catch {}
   };
 
   useEffect(() => {
@@ -70,7 +77,6 @@ function Users() {
     fetchCities();
   }, []);
 
-  // تحقق بسيط لصحة الإيميل
   const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
   const handleChange = (e) => {
@@ -81,10 +87,16 @@ function Users() {
     setMessage("");
     setError("");
 
-    if (!newUser.name || !newUser.email || !newUser.cityId) {
+    if (
+      !newUser.name ||
+      !newUser.email ||
+      !newUser.cityId ||
+      !newUser.password
+    ) {
       setError("جميع الحقول مطلوبة.");
       return;
     }
+
     if (!isValidEmail(newUser.email)) {
       setError("يرجى إدخال بريد إلكتروني صالح.");
       return;
@@ -92,19 +104,50 @@ function Users() {
 
     setLoading(true);
     try {
+      const auth = getAuth();
+
+      // 1. إنشاء المستخدم في Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        newUser.email,
+        newUser.password
+      );
+
+      const uid = userCredential.user.uid;
+
+      // 2. حفظ بيانات المستخدم في Firestore
       const docRef = await addDoc(usersCollection, {
-        ...newUser,
+        uid,
+        name: newUser.name,
+        email: newUser.email,
+        cityId: newUser.cityId,
         isAdmin: false,
         createdAt: serverTimestamp(),
       });
-      setUsers([...users, { id: docRef.id, ...newUser, isAdmin: false }]);
-      setNewUser({ name: "", email: "", cityId: "" });
+
+      // 3. تحديث الواجهة
+      setUsers([
+        ...users,
+        {
+          id: docRef.id,
+          uid,
+          name: newUser.name,
+          email: newUser.email,
+          cityId: newUser.cityId,
+          isAdmin: false,
+        },
+      ]);
+
+      setNewUser({ name: "", email: "", password: "", cityId: "" });
       setShowForm(false);
-      setMessage("تم إضافة المستخدم بنجاح.");
+      setMessage("✅ تم إنشاء المستخدم وتسجيله بنجاح.");
     } catch (err) {
       console.error("فشل إضافة المستخدم:", err);
-      setError("فشل إضافة المستخدم.");
+      setError(
+        "❌ فشل إنشاء المستخدم. قد يكون البريد الإلكتروني مستخدم مسبقًا."
+      );
     }
+
     setLoading(false);
   };
 
@@ -112,44 +155,31 @@ function Users() {
     if (!window.confirm("هل أنت متأكد من حذف هذا المستخدم وجميع حجوزاته؟"))
       return;
     setLoading(true);
-    setMessage("");
-    setError("");
-
     try {
-      // 1. جلب جميع الحجوزات التي تحتوي على userId
       const bookingsSnapshot = await getDocs(collection(db, "bookings"));
       const affectedBookings = bookingsSnapshot.docs.filter((doc) =>
         (doc.data().userIds || []).includes(userId)
       );
-
-      // 2. تعديل أو حذف كل حجز
       const promises = affectedBookings.map(async (bookingDoc) => {
         const data = bookingDoc.data();
-        const currentUserIds = data.userIds || [];
-
-        if (currentUserIds.length <= 1) {
-          // إذا كان المستخدم الوحيد، نحذف الحجز بالكامل
+        const updatedUserIds = (data.userIds || []).filter(
+          (id) => id !== userId
+        );
+        if (updatedUserIds.length === 0) {
           await deleteDoc(doc(db, "bookings", bookingDoc.id));
         } else {
-          // إذا كان هناك أكثر من مستخدم، نحذف معرف المستخدم من المصفوفة
-          const updatedUserIds = currentUserIds.filter((id) => id !== userId);
           await updateDoc(doc(db, "bookings", bookingDoc.id), {
             userIds: updatedUserIds,
           });
         }
       });
-
       await Promise.all(promises);
-
-      // 3. حذف المستخدم نفسه من جدول users
       await deleteDoc(doc(db, "users", userId));
       setUsers(users.filter((user) => user.id !== userId));
-      setMessage("✅ تم حذف المستخدم وجميع الحجوزات المرتبطة به.");
-    } catch (err) {
-      console.error("فشل حذف المستخدم أو الحجوزات:", err);
-      setError("❌ فشل حذف المستخدم أو تعديل الحجوزات.");
+      setMessage("تم حذف المستخدم وجميع الحجوزات المرتبطة به.");
+    } catch {
+      setError("فشل حذف المستخدم أو تعديل الحجوزات.");
     }
-
     setLoading(false);
   };
 
@@ -160,6 +190,8 @@ function Users() {
       email: user.email,
       cityId: user.cityId || "",
       isAdmin: user.isAdmin || false,
+      oldPassword: "",
+      newPassword: "",
     });
     setMessage("");
     setError("");
@@ -168,39 +200,43 @@ function Users() {
   const saveChanges = async () => {
     setMessage("");
     setError("");
-
-    if (!editedUser.name || !editedUser.email || !editedUser.cityId) {
-      setError("جميع الحقول مطلوبة.");
-      return;
-    }
-    if (!isValidEmail(editedUser.email)) {
-      setError("يرجى إدخال بريد إلكتروني صالح.");
-      return;
-    }
+    if (!editedUser.name || !editedUser.email || !editedUser.cityId)
+      return setError("جميع الحقول مطلوبة.");
+    if (!isValidEmail(editedUser.email))
+      return setError("يرجى إدخال بريد إلكتروني صالح.");
 
     setLoading(true);
     try {
-      const userRef = doc(db, "users", editingUser.id);
-      await updateDoc(userRef, editedUser);
+      // تغيير كلمة السر فقط إذا كان المستخدم الحالي هو نفسه
+      if (
+        editedUser.newPassword &&
+        editedUser.oldPassword &&
+        auth.currentUser?.uid === editingUser.id
+      ) {
+        const credential = EmailAuthProvider.credential(
+          auth.currentUser.email,
+          editedUser.oldPassword
+        );
+        await reauthenticateWithCredential(auth.currentUser, credential);
+        await updatePassword(auth.currentUser, editedUser.newPassword);
+      }
 
+      const { oldPassword, newPassword, ...userDataToUpdate } = editedUser;
+      await updateDoc(doc(db, "users", editingUser.id), userDataToUpdate);
       const updatedUsers = users.map((u) =>
-        u.id === editingUser.id ? { ...u, ...editedUser } : u
+        u.id === editingUser.id ? { ...u, ...userDataToUpdate } : u
       );
       setUsers(updatedUsers);
       setEditingUser(null);
       setMessage("تم تحديث بيانات المستخدم بنجاح.");
     } catch (err) {
-      console.error("فشل تعديل المستخدم:", err);
-      setError("فشل تعديل المستخدم.");
+      setError("فشل تعديل المستخدم أو كلمة السر. تأكد من صحة كلمة السر.");
     }
     setLoading(false);
   };
 
-  // دالة لجلب اسم المدينة من cityId
-  const getCityName = (cityId) => {
-    const city = cities.find((c) => c.id === cityId);
-    return city ? city.name : "-";
-  };
+  const getCityName = (cityId) =>
+    cities.find((c) => c.id === cityId)?.name || "-";
 
   return (
     <div className="users-page">
@@ -239,7 +275,17 @@ function Users() {
             onChange={handleChange}
             disabled={loading}
           />
+          <input
+            type="password"
+            name="password"
+            placeholder="كلمة السر"
+            value={newUser.password}
+            onChange={handleChange}
+            disabled={loading}
+          />
+
           <select
+            className="select-city"
             name="cityId"
             value={newUser.cityId}
             onChange={handleChange}
@@ -346,8 +392,38 @@ function Users() {
               ))}
             </select>
 
+            {/* فقط إذا كان المستخدم هو نفسه */}
+            {auth.currentUser?.uid === editingUser.id && (
+              <>
+                <input
+                  type="password"
+                  placeholder="كلمة السر الحالية"
+                  value={editedUser.oldPassword}
+                  onChange={(e) =>
+                    setEditedUser({
+                      ...editedUser,
+                      oldPassword: e.target.value,
+                    })
+                  }
+                  disabled={loading}
+                />
+                <input
+                  type="password"
+                  placeholder="كلمة السر الجديدة (اختياري)"
+                  value={editedUser.newPassword}
+                  onChange={(e) =>
+                    setEditedUser({
+                      ...editedUser,
+                      newPassword: e.target.value,
+                    })
+                  }
+                  disabled={loading}
+                />
+              </>
+            )}
+
             <div style={{ margin: "15px 0", textAlign: "right" }}>
-              <label>
+              <label className="lll">
                 <input
                   type="checkbox"
                   checked={editedUser.isAdmin}
