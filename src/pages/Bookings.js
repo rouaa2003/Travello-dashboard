@@ -9,6 +9,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 
 function Bookings() {
@@ -145,9 +146,6 @@ function Bookings() {
     if (newBooking.seatsToBook > availableSeats) {
       return alert("عدد المقاعد المطلوبة أكبر من المقاعد المتاحة");
     }
-    if (newBooking.seatsToBook !== newBooking.userIds.length) {
-      return alert("عدد المقاعد المختارة لا يطابق عدد المستخدمين المختارين");
-    }
 
     try {
       await addDoc(bookingsCollection, {
@@ -257,6 +255,7 @@ function Bookings() {
               trips={trips}
               onSave={async (bookingData) => {
                 try {
+                  // 1. إضافة الحجز في جدول bookings
                   await addDoc(collection(db, "bookings"), {
                     userIds: bookingData.userIds,
                     tripId: bookingData.tripId,
@@ -264,6 +263,22 @@ function Bookings() {
                     customTrip: false,
                     createdAt: new Date(),
                   });
+
+                  // 2. تحديث عدد المقاعد المحجوزة في جدول trips
+                  const tripRef = doc(db, "trips", bookingData.tripId);
+
+                  // إيجاد بيانات الرحلة من الحالة المحلية
+                  const trip = trips.find((t) => t.id === bookingData.tripId);
+                  const currentSeatsBooked = trip?.seatsBooked || 0;
+                  const newSeatsBooked =
+                    currentSeatsBooked + bookingData.seatsToBook;
+
+                  // تحديث القيمة في قاعدة البيانات
+                  await updateDoc(tripRef, {
+                    seatsBooked: newSeatsBooked,
+                  });
+
+                  // 3. إغلاق المودال وإعادة تحميل البيانات
                   setShowAddModal(false);
                   await fetchData();
                 } catch (err) {
