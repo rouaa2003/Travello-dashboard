@@ -108,17 +108,48 @@ function Users() {
     setLoading(false);
   };
 
-  const deleteUser = async (id) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا المستخدم؟")) return;
+  const deleteUser = async (userId) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا المستخدم وجميع حجوزاته؟"))
+      return;
     setLoading(true);
+    setMessage("");
+    setError("");
+
     try {
-      await deleteDoc(doc(db, "users", id));
-      setUsers(users.filter((user) => user.id !== id));
-      setMessage("تم حذف المستخدم.");
+      // 1. جلب جميع الحجوزات التي تحتوي على userId
+      const bookingsSnapshot = await getDocs(collection(db, "bookings"));
+      const affectedBookings = bookingsSnapshot.docs.filter((doc) =>
+        (doc.data().userIds || []).includes(userId)
+      );
+
+      // 2. تعديل أو حذف كل حجز
+      const promises = affectedBookings.map(async (bookingDoc) => {
+        const data = bookingDoc.data();
+        const currentUserIds = data.userIds || [];
+
+        if (currentUserIds.length <= 1) {
+          // إذا كان المستخدم الوحيد، نحذف الحجز بالكامل
+          await deleteDoc(doc(db, "bookings", bookingDoc.id));
+        } else {
+          // إذا كان هناك أكثر من مستخدم، نحذف معرف المستخدم من المصفوفة
+          const updatedUserIds = currentUserIds.filter((id) => id !== userId);
+          await updateDoc(doc(db, "bookings", bookingDoc.id), {
+            userIds: updatedUserIds,
+          });
+        }
+      });
+
+      await Promise.all(promises);
+
+      // 3. حذف المستخدم نفسه من جدول users
+      await deleteDoc(doc(db, "users", userId));
+      setUsers(users.filter((user) => user.id !== userId));
+      setMessage("✅ تم حذف المستخدم وجميع الحجوزات المرتبطة به.");
     } catch (err) {
-      console.error("فشل حذف المستخدم:", err);
-      setError("فشل حذف المستخدم.");
+      console.error("فشل حذف المستخدم أو الحجوزات:", err);
+      setError("❌ فشل حذف المستخدم أو تعديل الحجوزات.");
     }
+
     setLoading(false);
   };
 
