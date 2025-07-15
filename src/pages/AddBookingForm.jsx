@@ -30,8 +30,8 @@ export default function AddBookingForm({
 
     if (seatsToBook > availableSeats)
       return alert("عدد المقاعد المطلوب أكبر من المقاعد المتاحة");
-    if (seatsToBook !== userIds.length)
-      return alert("عدد المقاعد المختارة لا يطابق عدد المستخدمين المختارين");
+    // if (seatsToBook !== userIds.length)
+    //   return alert("عدد المقاعد المختارة لا يطابق عدد المستخدمين المختارين");
 
     onSave({
       userIds,

@@ -6,6 +6,7 @@ import { db } from "./firebase";
 import {
   collection,
   getDocs,
+  getDoc,
   addDoc,
   deleteDoc,
   doc,
@@ -142,10 +143,10 @@ function Bookings() {
     const trip = trips.find((t) => t.id === newBooking.tripId);
     if (!trip) return alert("الرحلة غير موجودة");
 
-    const availableSeats = getAvailableSeats(trip);
-    if (newBooking.seatsToBook > availableSeats) {
-      return alert("عدد المقاعد المطلوبة أكبر من المقاعد المتاحة");
-    }
+    // const availableSeats = getAvailableSeats(trip);
+    // if (newBooking.seatsToBook > availableSeats) {
+    //   return alert("عدد المقاعد المطلوبة أكبر من المقاعد المتاحة");
+    // }
 
     try {
       await addDoc(bookingsCollection, {
@@ -169,7 +170,43 @@ function Bookings() {
   const deleteBooking = async (id) => {
     if (!window.confirm("هل أنت متأكد من حذف هذا الحجز؟")) return;
     try {
-      await deleteDoc(doc(db, "bookings", id));
+      const bookingDocRef = doc(db, "bookings", id);
+      const bookingSnap = await getDoc(bookingDocRef);
+
+      if (!bookingSnap.exists()) {
+        alert("الحجز غير موجود");
+        return;
+      }
+
+      const bookingData = bookingSnap.data();
+      console.log("Booking data before delete:", bookingData);
+
+      if (!bookingData.customTrip && bookingData.tripId) {
+        const tripDocRef = doc(db, "trips", bookingData.tripId);
+        const tripSnap = await getDoc(tripDocRef);
+
+        if (tripSnap.exists()) {
+          const tripData = tripSnap.data();
+          console.log("Trip data before update:", tripData);
+
+          const seatsBookedInBooking =
+            bookingData.seatsBooked || bookingData.userIds.length || 0;
+          const updatedSeatsBooked =
+            (tripData.seatsBooked || 0) - seatsBookedInBooking;
+
+          console.log(
+            "Updating seatsBooked to:",
+            updatedSeatsBooked < 0 ? 0 : updatedSeatsBooked
+          );
+
+          await updateDoc(tripDocRef, {
+            seatsBooked: updatedSeatsBooked < 0 ? 0 : updatedSeatsBooked,
+          });
+        }
+      }
+
+      await deleteDoc(bookingDocRef);
+
       await fetchData();
     } catch (error) {
       console.error("Error deleting booking:", error);
