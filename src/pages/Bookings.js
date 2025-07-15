@@ -324,7 +324,7 @@ function Bookings() {
                 <td>{formatDate(trip?.tripDate)}</td>
                 <td>جاهزة</td>
                 <td>
-                  {availableSeats} / {trip?.maxSeats || "غير معروف"}
+                  {booking.seatsBooked} / {trip?.maxSeats || "غير معروف"}
                 </td>
                 <td>
                   <button

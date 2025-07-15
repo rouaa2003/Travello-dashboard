@@ -212,7 +212,7 @@ function Trips() {
               <td>{formatDate(trip.tripDate)}</td>
               <td>{trip.tripDuration} يوم</td>
               <td>{trip.maxSeats}</td>
-              <td>{trip.availableSeats ?? trip.maxSeats}</td>
+              <td>{trip.maxSeats - (trip.seatsBooked || 0)}</td>
               <td>{formatDate(trip.createdAt)}</td>
               <td>
                 <button className="show-btn" onClick={() => openDetails(trip)}>
