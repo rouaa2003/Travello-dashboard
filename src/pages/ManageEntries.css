@@ -145,22 +145,33 @@ table img {
 .edit-form button:hover {
   background-color: #006c25;
 }
-.search-input {
-  width: 100%;
-  max-width: 400px;
-  padding: 10px 14px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 15px;
-  margin-bottom: 25px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: border-color 0.2s ease;
-  display: block;
-  margin: 25px auto;
+.filters {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+  direction: rtl;
 }
 
-.search-input:focus {
-  outline: none;
+.filters input[type="text"],
+.filters .f-select {
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 2px solid #00892e;
+  border-radius: 8px;
+  min-width: 350px;
+  background-color: #fff;
+  transition: 0.3s ease;
+  font-family: "Cairo", sans-serif;
+  text-align: right;
+  margin: 5px;
+}
+
+.filters input[type="text"]:focus,
+.filters .f-select:focus {
   border-color: #00892e;
-  box-shadow: 0 0 0 2px rgba(0, 137, 46, 0.2);
+  background-color: #eee;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 137, 46, 0.1);
 }

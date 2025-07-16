@@ -23,6 +23,7 @@ function ManageEntries() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
+  const [selectedCity, setSelectedCity] = useState(""); // مدينة الفلترة
 
   const fetchData = async () => {
     const snapshot = await getDocs(collection(db, activeTab));
@@ -53,8 +54,12 @@ function ManageEntries() {
     fetchData();
   };
 
-  const filteredData = data.filter((item) =>
-    item.name?.toLowerCase().includes(search.toLowerCase())
+  const filteredData = data
+    .filter((item) => item.name?.toLowerCase().includes(search.toLowerCase()))
+    .filter((item) => (selectedCity ? item.cityId === selectedCity : true));
+
+  const cityOptions = [...new Set(data.map((item) => item.cityId))].filter(
+    Boolean
   );
 
   return (
@@ -72,14 +77,28 @@ function ManageEntries() {
           </button>
         ))}
       </div>
+      <div className="filters">
+        <input
+          type="text"
+          placeholder="🔍 ابحث باسم العنصر..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="search-input"
+        />
 
-      <input
-        type="text"
-        placeholder="🔍 ابحث باسم العنصر..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="search-input"
-      />
+        <select
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
+          className="f-select"
+        >
+          <option value="">كل المحافظات</option>
+          {cityOptions.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <table className="entries-table">
         <thead>
