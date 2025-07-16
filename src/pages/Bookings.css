@@ -181,3 +181,24 @@ button.show-btn {
 .trip-details p {
   margin: 4px 0;
 }
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin: 20px 0;
+  justify-content: flex-start;
+}
+
+.filters-row input,
+.filters-row select {
+  padding: 10px;
+  border: 2px solid #00892e;
+  border-radius: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #00892e;
+  min-width: 160px;
+}
+.f-user {
+  height: 25px;
+}

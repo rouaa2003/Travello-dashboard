@@ -23,6 +23,10 @@ function Bookings() {
   const [places, setPlaces] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterUser, setFilterUser] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterType, setFilterType] = useState(""); // "custom" أو "ready"
 
   const [newBooking, setNewBooking] = useState({
     userIds: [],
@@ -271,6 +275,35 @@ function Bookings() {
   if (loading) {
     return <div className="loading-indicator">جاري تحميل البيانات...</div>;
   }
+  const allBookings = [
+    ...bookings.map((b) => ({ ...b, type: "جاهزة" })),
+    ...customBookings.map((b) => ({ ...b, type: "مخصصة" })),
+  ];
+
+  const filteredBookings = allBookings.filter((booking) => {
+    const userNames = getNamesByIds(booking.userIds, users);
+    const cityNames = (
+      booking.selectedCityIds ||
+      trips.find((t) => t.id === booking.tripId)?.selectedCityIds ||
+      []
+    ).join("، ");
+
+    const tripDate = booking.customTrip
+      ? booking.tripDate
+      : trips.find((t) => t.id === booking.tripId)?.tripDate;
+
+    const formattedDate = formatDate(tripDate);
+
+    const matchesUser = !filterUser || userNames.includes(filterUser.trim());
+    const matchesCity = !filterCity || cityNames.includes(filterCity.trim());
+    const matchesDate = !filterDate || formattedDate === filterDate;
+    const matchesType =
+      !filterType ||
+      (filterType === "custom" && booking.customTrip) ||
+      (filterType === "ready" && !booking.customTrip);
+
+    return matchesUser && matchesCity && matchesDate && matchesType;
+  });
 
   return (
     <div
@@ -278,6 +311,47 @@ function Bookings() {
       style={{ direction: "rtl", fontFamily: "Cairo, sans-serif", padding: 20 }}
     >
       <h1>إدارة الحجوزات</h1>
+      <div className="filters-row">
+        <input
+          type="text"
+          className="f-user"
+          placeholder="🔍 اسم المستخدم"
+          value={filterUser}
+          onChange={(e) => setFilterUser(e.target.value)}
+        />
+
+        <select
+          value={filterCity}
+          onChange={(e) => setFilterCity(e.target.value)}
+        >
+          <option value="">كل المدن</option>
+          {[
+            ...new Set([
+              ...trips.flatMap((t) => t.selectedCityIds || []),
+              ...customBookings.flatMap((b) => b.selectedCityIds || []),
+            ]),
+          ].map((city, i) => (
+            <option key={i} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+        />
+
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+        >
+          <option value="">كل الأنواع</option>
+          <option value="ready">رحلات جاهزة</option>
+          <option value="custom">رحلات مخصصة</option>
+        </select>
+      </div>
 
       <button className="add-btn" onClick={() => setShowAddModal(true)}>
         إضافة حجز
@@ -349,24 +423,34 @@ function Bookings() {
           </tr>
         </thead>
         <tbody>
-          {/* الحجوزات العادية */}
-          {bookings.map((booking, index) => {
-            const trip = trips.find((t) => t.id === booking.tripId);
-            const availableSeats = getAvailableSeats(trip);
+          {filteredBookings.map((booking, index) => {
+            const isCustom = booking.customTrip;
+            const trip = isCustom
+              ? null
+              : trips.find((t) => t.id === booking.tripId);
+
             return (
-              <tr key={booking.id} style={{ borderBottom: "1px solid #eee" }}>
+              <tr key={booking.id}>
                 <td>{index + 1}</td>
                 <td>{getNamesByIds(booking.userIds, users)}</td>
-                <td>{trip?.selectedCityIds?.join("، ") || "غير متوفر"}</td>
-                <td>{formatDate(trip?.tripDate)}</td>
-                <td>جاهزة</td>
                 <td>
-                  {booking.seatsBooked} / {trip?.maxSeats || "غير معروف"}
+                  {isCustom
+                    ? booking.selectedCityIds?.join("، ")
+                    : trip?.selectedCityIds?.join("، ")}
+                </td>
+                <td>
+                  {formatDate(isCustom ? booking.tripDate : trip?.tripDate)}
+                </td>
+                <td>{isCustom ? "مخصصة" : "جاهزة"}</td>
+                <td>
+                  {isCustom
+                    ? "مخصصة"
+                    : `${booking.seatsBooked} / ${trip?.maxSeats || "?"}`}
                 </td>
                 <td>
                   <button
                     className="show-btn"
-                    onClick={() => openDetailsModal(booking, false)}
+                    onClick={() => openDetailsModal(booking, isCustom)}
                   >
                     عرض التفاصيل
                   </button>
@@ -382,34 +466,6 @@ function Bookings() {
               </tr>
             );
           })}
-
-          {/* الحجوزات المخصصة */}
-          {customBookings.map((booking, index) => (
-            <tr key={booking.id} style={{ borderBottom: "1px solid #eee" }}>
-              <td>{bookings.length + index + 1}</td>
-              <td>{getNamesByIds(booking.userIds, users)}</td>
-              <td>{booking.selectedCityIds?.join("، ") || "غير متوفر"}</td>
-              <td>{formatDate(booking.tripDate)}</td>
-              <td>مخصصة</td>
-              <td>هذه الرحلة مخصصة</td>
-              <td>
-                <button
-                  className="show-btn"
-                  onClick={() => openDetailsModal(booking, true)}
-                >
-                  عرض التفاصيل
-                </button>
-              </td>
-              <td>
-                <button
-                  className="delete-btn"
-                  onClick={() => deleteBooking(booking.id)}
-                >
-                  🗑 حذف
-                </button>
-              </td>
-            </tr>
-          ))}
         </tbody>
       </table>
 
