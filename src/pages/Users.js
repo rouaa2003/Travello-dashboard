@@ -42,6 +42,9 @@ function Users() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [searchName, setSearchName] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [filterIsAdmin, setFilterIsAdmin] = useState("");
 
   const usersCollection = collection(db, "users");
   const citiesCollection = collection(db, "cities");
@@ -241,6 +244,36 @@ function Users() {
   return (
     <div className="users-page">
       <h1>إدارة المستخدمين</h1>
+      <div className="filters-row">
+        <input
+          className="f-user"
+          type="text"
+          placeholder="🔍 اسم المستخدم"
+          value={searchName}
+          onChange={(e) => setSearchName(e.target.value)}
+        />
+
+        <select
+          value={filterCity}
+          onChange={(e) => setFilterCity(e.target.value)}
+        >
+          <option value="">🏙 كل المدن</option>
+          {cities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filterIsAdmin}
+          onChange={(e) => setFilterIsAdmin(e.target.value)}
+        >
+          <option value="">👑 كل الأنواع</option>
+          <option value="true">مشرف</option>
+          <option value="false">عادي</option>
+        </select>
+      </div>
 
       <button
         className="add-btn"
@@ -326,33 +359,45 @@ function Users() {
               </td>
             </tr>
           )}
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td>{user.id.slice(0, 6)}...</td>
-              <td>{user.name}</td>
-              <td>{user.email}</td>
-              <td>{getCityName(user.cityId)}</td>
-              <td>{user.isAdmin ? "نعم" : "لا"}</td>
-              <td>
-                <button
-                  className="edit-btn"
-                  onClick={() => handleEdit(user)}
-                  disabled={loading}
-                >
-                  ✏️ تعديل
-                </button>
-              </td>
-              <td>
-                <button
-                  className="delete-btn"
-                  onClick={() => deleteUser(user.id)}
-                  disabled={loading}
-                >
-                  🗑 حذف
-                </button>
-              </td>
-            </tr>
-          ))}
+          {users
+            .filter((user) => {
+              const nameMatch = user.name
+                .toLowerCase()
+                .includes(searchName.toLowerCase());
+              const cityMatch = filterCity ? user.cityId === filterCity : true;
+              const roleMatch =
+                filterIsAdmin === ""
+                  ? true
+                  : String(user.isAdmin) === filterIsAdmin;
+              return nameMatch && cityMatch && roleMatch;
+            })
+            .map((user) => (
+              <tr key={user.id}>
+                <td>{user.id.slice(0, 6)}...</td>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>{getCityName(user.cityId)}</td>
+                <td>{user.isAdmin ? "نعم" : "لا"}</td>
+                <td>
+                  <button
+                    className="edit-btn"
+                    onClick={() => handleEdit(user)}
+                    disabled={loading}
+                  >
+                    ✏️ تعديل
+                  </button>
+                </td>
+                <td>
+                  <button
+                    className="delete-btn"
+                    onClick={() => deleteUser(user.id)}
+                    disabled={loading}
+                  >
+                    🗑 حذف
+                  </button>
+                </td>
+              </tr>
+            ))}
         </tbody>
       </table>
 

@@ -331,3 +331,19 @@ button.delete-btn:hover:not(:disabled) {
   height: 20px;
   color: #00892e;
 }
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+  justify-content: flex-end;
+}
+
+.filters-row input,
+.filters-row select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+  min-width: 160px;
+}
