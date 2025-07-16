@@ -109,16 +109,36 @@ function Trips() {
   };
 
   const handleDelete = async (tripId) => {
-    if (window.confirm("هل أنت متأكد من حذف هذه الرحلة؟")) {
-      try {
-        await deleteDoc(doc(db, "trips", tripId));
-        setTrips((prev) => prev.filter((t) => t.id !== tripId));
-        setMessage("تم حذف الرحلة بنجاح.");
-      } catch (err) {
-        console.error("فشل في حذف الرحلة:", err);
-        setError("فشل في حذف الرحلة.");
-      }
+    if (!window.confirm("هل أنت متأكد من حذف هذه الرحلة وجميع حجوزاتها؟"))
+      return;
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      // 1. جلب جميع الحجوزات
+      const bookingsSnapshot = await getDocs(collection(db, "bookings"));
+
+      // 2. حذف الحجوزات المرتبطة بهذه الرحلة
+      const deletePromises = bookingsSnapshot.docs
+        .filter((doc) => doc.data().tripId === tripId)
+        .map((doc) => deleteDoc(doc.ref));
+
+      await Promise.all(deletePromises);
+
+      // 3. حذف الرحلة
+      await deleteDoc(doc(db, "trips", tripId));
+
+      // 4. تحديث الحالة
+      setTrips((prev) => prev.filter((t) => t.id !== tripId));
+      setMessage("✅ تم حذف الرحلة وجميع الحجوزات المرتبطة بها.");
+    } catch (err) {
+      console.error("فشل في حذف الرحلة أو الحجوزات:", err);
+      setError("❌ فشل في حذف الرحلة أو الحجوزات المرتبطة.");
     }
+
+    setLoading(false);
   };
 
   const handleEdit = (trip) => {
