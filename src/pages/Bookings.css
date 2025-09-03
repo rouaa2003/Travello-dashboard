@@ -202,3 +202,18 @@ button.show-btn {
 .f-user {
   height: 25px;
 }
+.add-btn.myadd {
+  width: 230px;
+  display: block;
+
+  background-color: #00892e;
+  color: white;
+  border: none;
+  padding: 14px 48px;
+  font-size: 18px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 6px 20px #00701fbb;
+  transition: background-color 0.3s ease;
+}

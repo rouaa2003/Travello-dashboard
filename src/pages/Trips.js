@@ -7,6 +7,8 @@ import {
   doc,
   updateDoc,
   Timestamp,
+  query,
+  where,
 } from "firebase/firestore";
 import "./Trips.css";
 
@@ -28,6 +30,9 @@ function Trips() {
   const [editedDate, setEditedDate] = useState("");
   const [editedDuration, setEditedDuration] = useState(1);
 
+  const [showBookedUsersModal, setShowBookedUsersModal] = useState(false);
+  const [bookedUsers, setBookedUsers] = useState([]); // [{userId, name, email, seats}]
+  const [loadingBookedUsers, setLoadingBookedUsers] = useState(false);
   const tripsCollection = collection(db, "trips");
 
   useEffect(() => {
@@ -39,7 +44,26 @@ function Trips() {
           id: doc.id,
           ...doc.data(),
         }));
-        setTrips(tripsData);
+
+        const today = new Date();
+
+        // 1️⃣ الرحلات القديمة التي انتهت
+        const pastTrips = tripsData.filter(
+          (trip) => trip.tripDate?.toDate() < today
+        );
+
+        // 2️⃣ حذف الرحلات القديمة من Firestore
+        const deletePromises = pastTrips.map((trip) =>
+          deleteDoc(doc(db, "trips", trip.id))
+        );
+        await Promise.all(deletePromises);
+
+        // 3️⃣ الاحتفاظ بالرحلات القادمة فقط
+        const upcomingTrips = tripsData.filter(
+          (trip) => trip.tripDate?.toDate() >= today
+        );
+
+        setTrips(upcomingTrips);
       } catch (err) {
         console.error("فشل جلب الرحلات:", err);
         setError("فشل جلب بيانات الرحلات.");
@@ -90,6 +114,57 @@ function Trips() {
     return snapshot.docs
       .filter((doc) => ids.includes(doc.id))
       .map((doc) => ({ id: doc.id, ...doc.data() }));
+  };
+  const openBookedUsersModal = async (tripId) => {
+    setLoadingBookedUsers(true);
+    try {
+      // 1) جلب جميع حجوزات هذه الرحلة
+      const q = query(
+        collection(db, "bookings"),
+        where("tripId", "==", tripId)
+      );
+      const snap = await getDocs(q);
+      const bookingsDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // 2) تجميع userSeats أو fallback للقديم
+      let entries = [];
+      bookingsDocs.forEach((b) => {
+        if (Array.isArray(b.userSeats) && b.userSeats.length) {
+          entries.push(...b.userSeats); // [{userId, seats}]
+        } else if (Array.isArray(b.userIds) && b.userIds.length) {
+          // توافق خلفي: إذا ما عندي userSeats
+          // إن كان عندي seatsBooked نقسمها بالتساوي، وإلا 1 مقعد لكل مستخدم
+          const perUser =
+            b.seatsBooked && b.userIds.length
+              ? Math.max(1, Math.floor(b.seatsBooked / b.userIds.length))
+              : 1;
+          entries.push(
+            ...b.userIds.map((uid) => ({ userId: uid, seats: perUser }))
+          );
+        }
+      });
+
+      // 3) جلب بيانات المستخدمين لعرض الاسم/الإيميل
+      const usersSnap = await getDocs(collection(db, "users"));
+      const usersMap = Object.fromEntries(
+        usersSnap.docs.map((u) => [u.id, { id: u.id, ...u.data() }])
+      );
+
+      const merged = entries.map((e) => ({
+        userId: e.userId,
+        seats: e.seats,
+        name: usersMap[e.userId]?.name || e.userId,
+        email: usersMap[e.userId]?.email || "",
+      }));
+
+      setBookedUsers(merged);
+      setShowBookedUsersModal(true);
+    } catch (err) {
+      console.error("خطأ في جلب الحاجزين:", err);
+      alert("فشل جلب الحاجزين");
+    } finally {
+      setLoadingBookedUsers(false);
+    }
   };
 
   const openDetails = async (trip) => {
@@ -177,15 +252,22 @@ function Trips() {
     }
   };
 
-  const filteredTrips = trips.filter((trip) => {
-    const matchesCity =
-      !filterCity || trip.selectedCityIds?.includes(filterCity);
-    const matchesDate =
-      !filterDate ||
-      (trip.tripDate &&
-        trip.tripDate.toDate().toISOString().split("T")[0] === filterDate);
-    return matchesCity && matchesDate;
-  });
+  const filteredTrips = trips
+    .filter((trip) => {
+      const matchesCity =
+        !filterCity || trip.selectedCityIds?.includes(filterCity);
+      const matchesDate =
+        !filterDate ||
+        (trip.tripDate &&
+          trip.tripDate.toDate().toISOString().split("T")[0] === filterDate);
+      return matchesCity && matchesDate;
+    })
+    .sort((a, b) => {
+      // ترتيب تصاعدي حسب تاريخ الرحلة
+      if (!a.tripDate) return 1;
+      if (!b.tripDate) return -1;
+      return a.tripDate.toDate() - b.tripDate.toDate();
+    });
 
   return (
     <div className="trips-page">
@@ -221,7 +303,7 @@ function Trips() {
             <th>المدة</th>
             <th>المقاعد الكلية</th>
             <th>المقاعد المتاحة</th>
-            <th>تاريخ الإضافة</th>
+
             <th>الخيارات</th>
           </tr>
         </thead>
@@ -233,7 +315,7 @@ function Trips() {
               <td>{trip.tripDuration} يوم</td>
               <td>{trip.maxSeats}</td>
               <td>{trip.maxSeats - (trip.seatsBooked || 0)}</td>
-              <td>{formatDate(trip.createdAt)}</td>
+
               <td>
                 <button className="show-btn" onClick={() => openDetails(trip)}>
                   📄عرض التفاصيل
@@ -246,6 +328,12 @@ function Trips() {
                   onClick={() => handleDelete(trip.id)}
                 >
                   🗑 حذف
+                </button>
+                <button
+                  className="show-btn"
+                  onClick={() => openBookedUsersModal(trip.id)}
+                >
+                  👥 الحاجزون
                 </button>
               </td>
             </tr>
@@ -308,7 +396,7 @@ function Trips() {
               {getCityNames(selectedTrip.selectedCityIds)}
             </p>
             <p>
-              <strong>التاريخ:</strong> {formatDate(selectedTrip.tripDate)}
+              <strong>الرحلةتاريخ:</strong> {formatDate(selectedTrip.tripDate)}
             </p>
             <p>
               <strong>المدة:</strong> {selectedTrip.tripDuration} يوم
@@ -340,6 +428,47 @@ function Trips() {
             </p>
 
             <button onClick={() => setSelectedTrip(null)}>إغلاق</button>
+          </div>
+        </div>
+      )}
+      {showBookedUsersModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>👥 قائمة الحاجزين</h3>
+
+            {loadingBookedUsers ? (
+              <p>جاري التحميل...</p>
+            ) : bookedUsers.length ? (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th>المستخدم</th>
+                    <th>الإيميل</th>
+                    <th>المقاعد المحجوزة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookedUsers.map((u, idx) => (
+                    <tr key={idx}>
+                      <td>{u.name}</td>
+                      <td>{u.email}</td>
+                      <td>{u.seats}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>لا يوجد حجوزات لهذه الرحلة.</p>
+            )}
+
+            <div className="modal-actions" style={{ marginTop: 16 }}>
+              <button
+                className="cancel-btn"
+                onClick={() => setShowBookedUsersModal(false)}
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
         </div>
       )}

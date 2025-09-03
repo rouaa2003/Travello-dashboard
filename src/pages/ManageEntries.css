@@ -175,3 +175,93 @@ table img {
   outline: none;
   box-shadow: 0 0 0 3px rgba(0, 137, 46, 0.1);
 }
+/* overlay خلفية المودال */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* نافذة المودال */
+.modal {
+  background-color: #fff;
+  padding: 25px 30px;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal h3 {
+  margin-bottom: 20px;
+  text-align: center;
+  color: #00892e;
+}
+
+.modal input,
+.modal textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.wide {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.modal textarea {
+  resize: vertical;
+  height: 80px;
+  width: 95%;
+}
+
+.modal label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.modal input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.btn.save {
+  background-color: #00892e;
+  color: #fff;
+}
+
+.btn.cancel {
+  background-color: #ccc;
+  color: #333;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #00a72d;
+  box-shadow: 0 0 8px #00b02f99;
+}
+.form-actions button {
+  margin: 10px;
+}
+.myadd.add-btn {
+  margin: 10px auto 10px 0px;
+}

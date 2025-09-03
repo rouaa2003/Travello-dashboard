@@ -99,8 +99,15 @@ export default function AddBookingForm({
         onChange={(e) => setSeatsToBook(parseInt(e.target.value, 10) || 1)}
       />
 
-      <div style={{ display: "flex", gap: 10 }}>
-        <button className="add-btn" onClick={handleSubmit}>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <button className="con-add-btn" onClick={handleSubmit}>
           حفظ
         </button>
         <button className="delete-btn" onClick={onCancel}>

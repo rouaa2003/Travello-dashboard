@@ -103,6 +103,7 @@ function Bookings() {
       .map((id) => dataList.find((item) => item.id === id)?.name || id)
       .join("، ");
   };
+  //
 
   // تنسيق التاريخ
   const formatDate = (dateVal) => {
@@ -122,52 +123,6 @@ function Bookings() {
       .filter((b) => b.tripId === trip.id)
       .reduce((acc, b) => acc + (b.seatsBooked || b.userIds.length), 0);
     return trip.maxSeats - bookedCount;
-  };
-
-  // تحديث اختيار المستخدمين وعدد المقاعد للحجز الجديد
-  const handleUserSelect = (e) => {
-    const selected = Array.from(e.target.selectedOptions).map(
-      (opt) => opt.value
-    );
-    setNewBooking({ ...newBooking, userIds: selected });
-  };
-
-  const handleSeatsChange = (e) => {
-    const val = parseInt(e.target.value, 10);
-    if (isNaN(val) || val < 1) return;
-    setNewBooking({ ...newBooking, seatsToBook: val });
-  };
-
-  // إضافة حجز جاهز فقط
-  const addBooking = async () => {
-    if (!newBooking.userIds.length || !newBooking.tripId) {
-      return alert("يرجى اختيار المستخدمين والرحلة");
-    }
-
-    const trip = trips.find((t) => t.id === newBooking.tripId);
-    if (!trip) return alert("الرحلة غير موجودة");
-
-    // const availableSeats = getAvailableSeats(trip);
-    // if (newBooking.seatsToBook > availableSeats) {
-    //   return alert("عدد المقاعد المطلوبة أكبر من المقاعد المتاحة");
-    // }
-
-    try {
-      await addDoc(bookingsCollection, {
-        userIds: newBooking.userIds,
-        tripId: newBooking.tripId,
-        customTrip: false,
-        seatsBooked: newBooking.seatsToBook,
-        createdAt: new Date(),
-      });
-
-      setNewBooking({ userIds: [], tripId: "", seatsToBook: 1 });
-      setShowAddModal(false);
-      await fetchData();
-    } catch (error) {
-      console.error("Error adding booking:", error);
-      alert("حدث خطأ أثناء إضافة الحجز");
-    }
   };
 
   // حذف الحجز
@@ -279,31 +234,48 @@ function Bookings() {
     ...bookings.map((b) => ({ ...b, type: "جاهزة" })),
     ...customBookings.map((b) => ({ ...b, type: "مخصصة" })),
   ];
+  const formatDateForFilter = (dateVal) => {
+    if (!dateVal) return "";
+    const dateObj = dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObj.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
-  const filteredBookings = allBookings.filter((booking) => {
-    const userNames = getNamesByIds(booking.userIds, users);
-    const cityNames = (
-      booking.selectedCityIds ||
-      trips.find((t) => t.id === booking.tripId)?.selectedCityIds ||
-      []
-    ).join("، ");
+  const filteredBookings = allBookings
+    .filter((booking) => {
+      const userNames = getNamesByIds(booking.userIds, users);
+      const cityNames = (
+        booking.selectedCityIds ||
+        trips.find((t) => t.id === booking.tripId)?.selectedCityIds ||
+        []
+      ).join("، ");
 
-    const tripDate = booking.customTrip
-      ? booking.tripDate
-      : trips.find((t) => t.id === booking.tripId)?.tripDate;
+      const tripDate = booking.customTrip
+        ? booking.tripDate
+        : trips.find((t) => t.id === booking.tripId)?.tripDate;
 
-    const formattedDate = formatDate(tripDate);
+      const formattedDate = formatDate(tripDate);
 
-    const matchesUser = !filterUser || userNames.includes(filterUser.trim());
-    const matchesCity = !filterCity || cityNames.includes(filterCity.trim());
-    const matchesDate = !filterDate || formattedDate === filterDate;
-    const matchesType =
-      !filterType ||
-      (filterType === "custom" && booking.customTrip) ||
-      (filterType === "ready" && !booking.customTrip);
+      const matchesUser = !filterUser || userNames.includes(filterUser.trim());
+      const matchesCity = !filterCity || cityNames.includes(filterCity.trim());
+      const matchesDate =
+        !filterDate || formatDateForFilter(tripDate) === filterDate;
 
-    return matchesUser && matchesCity && matchesDate && matchesType;
-  });
+      const matchesType =
+        !filterType ||
+        (filterType === "custom" && booking.customTrip) ||
+        (filterType === "ready" && !booking.customTrip);
+
+      return matchesUser && matchesCity && matchesDate && matchesType;
+    })
+    // 🔹 هنا نضيف الترتيب
+    .sort((a, b) => {
+      const createdAtA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+      const createdAtB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+      return createdAtB - createdAtA; // الأحدث أولاً
+    });
 
   return (
     <div
@@ -353,57 +325,9 @@ function Bookings() {
         </select>
       </div>
 
-      <button className="add-btn" onClick={() => setShowAddModal(true)}>
+      <button className="add-btn myadd" onClick={() => setShowAddModal(true)}>
         إضافة حجز
       </button>
-
-      {/* مودال إضافة حجز */}
-      {showAddModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ textAlign: "right" }}>
-            <AddBookingForm
-              users={users}
-              trips={trips}
-              onSave={async (bookingData) => {
-                try {
-                  // 1. إضافة الحجز في جدول bookings
-                  await addDoc(collection(db, "bookings"), {
-                    userIds: bookingData.userIds,
-                    tripId: bookingData.tripId,
-                    seatsBooked: bookingData.seatsToBook,
-                    customTrip: false,
-                    createdAt: new Date(),
-                  });
-
-                  // 2. تحديث عدد المقاعد المحجوزة في جدول trips
-                  const tripRef = doc(db, "trips", bookingData.tripId);
-
-                  // إيجاد بيانات الرحلة من الحالة المحلية
-                  const trip = trips.find((t) => t.id === bookingData.tripId);
-                  const currentSeatsBooked = trip?.seatsBooked || 0;
-                  const newSeatsBooked =
-                    currentSeatsBooked + bookingData.seatsToBook;
-
-                  // تحديث القيمة في قاعدة البيانات
-                  await updateDoc(tripRef, {
-                    seatsBooked: newSeatsBooked,
-                  });
-
-                  // 3. إغلاق المودال وإعادة تحميل البيانات
-                  setShowAddModal(false);
-                  await fetchData();
-                } catch (err) {
-                  alert("حدث خطأ أثناء إضافة الحجز");
-                  console.error(err);
-                }
-              }}
-              onCancel={() => setShowAddModal(false)}
-              getAvailableSeats={getAvailableSeats}
-              formatDate={formatDate}
-            />
-          </div>
-        </div>
-      )}
 
       {/* جدول الحجوزات (عادية + مخصصة) */}
       <table
@@ -432,7 +356,13 @@ function Bookings() {
             return (
               <tr key={booking.id}>
                 <td>{index + 1}</td>
-                <td>{getNamesByIds(booking.userIds, users)}</td>
+                <td>
+                  {booking.customTrip
+                    ? users.find((u) => u.id === booking.userId)?.name ||
+                      booking.userId
+                    : getNamesByIds(booking.userIds, users)}
+                </td>
+
                 <td>
                   {isCustom
                     ? booking.selectedCityIds?.join("، ")
@@ -469,6 +399,64 @@ function Bookings() {
         </tbody>
       </table>
 
+      {/* مودال إضافة حجز */}
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: "right" }}>
+            <AddBookingForm
+              users={users}
+              trips={trips}
+              onSave={async (bookingData) => {
+                try {
+                  // seatsToBook = إجمالي عدد المقاعد المطلوبة (من الفورم)
+                  // userIds = قائمة المستخدمين المختارين
+                  const totalSeats = bookingData.seatsToBook;
+
+                  // حساب المقاعد لكل مستخدم (بالتساوي)
+                  const seatsPerUser = Math.floor(
+                    totalSeats / bookingData.userIds.length
+                  );
+
+                  // مصفوفة المقاعد لكل مستخدم
+                  const userSeats = bookingData.userIds.map((uid, index) => ({
+                    userId: uid,
+                    seats:
+                      seatsPerUser +
+                      (index < totalSeats % bookingData.userIds.length ? 1 : 0), // لو فيه باقي
+                  }));
+
+                  // إضافة وثيقة الحجز
+                  await addDoc(collection(db, "bookings"), {
+                    userIds: bookingData.userIds, // للإبقاء على التوافق الخلفي
+                    userSeats, // الجديد: توزيع المقاعد
+                    tripId: bookingData.tripId,
+                    customTrip: false,
+                    seatsBooked: totalSeats, // إجمالي المقاعد في هذا الحجز
+                    createdAt: new Date(),
+                  });
+
+                  // تحديث seatsBooked في الرحلة
+                  const tripRef = doc(db, "trips", bookingData.tripId);
+                  const trip = trips.find((t) => t.id === bookingData.tripId);
+                  const currentSeatsBooked = trip?.seatsBooked || 0;
+                  const newSeatsBooked = currentSeatsBooked + totalSeats;
+
+                  await updateDoc(tripRef, { seatsBooked: newSeatsBooked });
+
+                  setShowAddModal(false);
+                  await fetchData();
+                } catch (err) {
+                  alert("حدث خطأ أثناء إضافة الحجز");
+                  console.error(err);
+                }
+              }}
+              onCancel={() => setShowAddModal(false)}
+              getAvailableSeats={getAvailableSeats}
+              formatDate={formatDate}
+            />
+          </div>
+        </div>
+      )}
       {/* مودال تفاصيل الرحلة */}
       {showDetailsModal && selectedTripDetails && (
         <TripDetailsModal

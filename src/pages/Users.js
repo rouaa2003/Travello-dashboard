@@ -276,7 +276,7 @@ function Users() {
       </div>
 
       <button
-        className="add-btn"
+        className="my-add-btn"
         onClick={() => {
           setShowForm(!showForm);
           setMessage("");
@@ -290,59 +290,79 @@ function Users() {
       {message && <p className="success-msg">{message}</p>}
       {error && <p className="error-msg">{error}</p>}
 
+      {loading && !showForm && <p>...جاري تحميل البيانات</p>}
       {showForm && (
-        <div className="form-container">
-          <input
-            type="text"
-            name="name"
-            placeholder="الاسم"
-            value={newUser.name}
-            onChange={handleChange}
-            disabled={loading}
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="البريد الإلكتروني"
-            value={newUser.email}
-            onChange={handleChange}
-            disabled={loading}
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="كلمة السر"
-            value={newUser.password}
-            onChange={handleChange}
-            disabled={loading}
-          />
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: "right" }}>
+            <h3>إضافة مستخدم جديد</h3>
 
-          <select
-            className="select-city"
-            name="cityId"
-            value={newUser.cityId}
-            onChange={handleChange}
-            disabled={loading}
-          >
-            <option value="">اختر المدينة</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name}
-              </option>
-            ))}
-          </select>
-          <button onClick={addUser} disabled={loading}>
-            {loading ? "جاري الإضافة..." : "إضافة"}
-          </button>
+            <input
+              type="text"
+              name="name"
+              placeholder="الاسم"
+              value={newUser.name}
+              onChange={handleChange}
+              disabled={loading}
+            />
+            <input
+              type="email"
+              name="email"
+              placeholder="البريد الإلكتروني"
+              value={newUser.email}
+              onChange={handleChange}
+              disabled={loading}
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="كلمة السر"
+              value={newUser.password}
+              onChange={handleChange}
+              disabled={loading}
+            />
+
+            <select
+              className="select-city"
+              name="cityId"
+              value={newUser.cityId}
+              onChange={handleChange}
+              disabled={loading}
+            >
+              <option value="">اختر المدينة</option>
+              {cities.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+
+            {error && <p className="error-msg">{error}</p>}
+            {message && <p className="success-msg">{message}</p>}
+
+            <div className="btn-con">
+              <button
+                onClick={addUser}
+                disabled={loading}
+                className="modal-add-btn"
+              >
+                {loading ? "جاري الإضافة..." : "إضافة"}
+              </button>
+              <button
+                onClick={() => setShowForm(false)}
+                disabled={loading}
+                className="cancel-btn"
+                style={{ marginLeft: "10px" }}
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      {loading && !showForm && <p>...جاري تحميل البيانات</p>}
 
       <table>
         <thead>
           <tr>
-            <th>id</th>
             <th>الاسم</th>
             <th>البريد الإلكتروني</th>
             <th>المدينة</th>
@@ -361,7 +381,8 @@ function Users() {
           )}
           {users
             .filter((user) => {
-              const nameMatch = user.name
+              const name = user?.name || "";
+              const nameMatch = name
                 .toLowerCase()
                 .includes(searchName.toLowerCase());
               const cityMatch = filterCity ? user.cityId === filterCity : true;
@@ -369,11 +390,12 @@ function Users() {
                 filterIsAdmin === ""
                   ? true
                   : String(user.isAdmin) === filterIsAdmin;
+
               return nameMatch && cityMatch && roleMatch;
             })
+
             .map((user) => (
               <tr key={user.id}>
-                <td>{user.id.slice(0, 6)}...</td>
                 <td>{user.name}</td>
                 <td>{user.email}</td>
                 <td>{getCityName(user.cityId)}</td>
@@ -402,7 +424,7 @@ function Users() {
       </table>
 
       {editingUser && (
-        <div className="edit-modal">
+        <div className="modal-overlay">
           <div className="modal-content">
             <h3>تعديل المستخدم</h3>
 

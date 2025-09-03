@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  addDoc,
 } from "firebase/firestore";
 import "./ManageEntries.css";
 
@@ -23,8 +24,20 @@ function ManageEntries() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
-  const [selectedCity, setSelectedCity] = useState(""); // مدينة الفلترة
+  const [selectedCity, setSelectedCity] = useState(""); // فلترة المدينة
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [cities, setCities] = useState([]);
 
+  const [newEntry, setNewEntry] = useState({
+    name: "",
+    type: "places",
+    description: "",
+    imgUrl: "",
+    cityId: "",
+    isPopular: false,
+  });
+
+  // جلب بيانات العناصر
   const fetchData = async () => {
     const snapshot = await getDocs(collection(db, activeTab));
     const docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -35,6 +48,20 @@ function ManageEntries() {
     fetchData();
   }, [activeTab]);
 
+  // جلب المدن
+  useEffect(() => {
+    fetchCities();
+  }, []);
+
+  const fetchCities = async () => {
+    const snapshot = await getDocs(collection(db, "cities"));
+    const docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    setCities(docs);
+    // تعيين أول مدينة كقيمة افتراضية
+    if (docs[0]) setNewEntry((prev) => ({ ...prev, cityId: docs[0].id }));
+  };
+
+  // الحذف
   const handleDelete = async (id) => {
     if (window.confirm("هل أنت متأكد من الحذف؟")) {
       await deleteDoc(doc(db, activeTab, id));
@@ -42,6 +69,7 @@ function ManageEntries() {
     }
   };
 
+  // التعديل
   const handleEdit = (item) => {
     setEditingId(item.id);
     setEditValues({ ...item });
@@ -54,18 +82,52 @@ function ManageEntries() {
     fetchData();
   };
 
+  // الإضافة
+  const handleAddEntry = async () => {
+    if (!newEntry.name || !newEntry.description || !newEntry.cityId) {
+      alert("يرجى ملء جميع الحقول المطلوبة!");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, newEntry.type), {
+        name: newEntry.name,
+        description: newEntry.description,
+        imgUrl: newEntry.imgUrl,
+        cityId: newEntry.cityId,
+        isPopular: newEntry.isPopular,
+      });
+      alert(
+        `✅ تم إضافة عنصر جديد إلى ${
+          collections.find((c) => c.key === newEntry.type)?.label
+        }`
+      );
+      setShowAddModal(false);
+      setNewEntry({
+        type: "places",
+        name: "",
+        description: "",
+        imgUrl: "",
+        cityId: cities[0]?.id || "",
+        isPopular: false,
+      });
+
+      if (newEntry.type === activeTab) fetchData();
+    } catch (error) {
+      console.error("❌ خطأ في الإضافة:", error);
+      alert("❌ فشل في الإضافة، تحقق من الاتصال أو البيانات.");
+    }
+  };
+
   const filteredData = data
     .filter((item) => item.name?.toLowerCase().includes(search.toLowerCase()))
     .filter((item) => (selectedCity ? item.cityId === selectedCity : true));
-
-  const cityOptions = [...new Set(data.map((item) => item.cityId))].filter(
-    Boolean
-  );
 
   return (
     <div className="manage-page">
       <h2>إدارة البيانات</h2>
 
+      {/* Tabs */}
       <div className="tabs">
         {collections.map((col) => (
           <button
@@ -77,6 +139,8 @@ function ManageEntries() {
           </button>
         ))}
       </div>
+
+      {/* Filters + زر الإضافة */}
       <div className="filters">
         <input
           type="text"
@@ -85,21 +149,111 @@ function ManageEntries() {
           onChange={(e) => setSearch(e.target.value)}
           className="search-input"
         />
-
         <select
           value={selectedCity}
           onChange={(e) => setSelectedCity(e.target.value)}
           className="f-select"
         >
           <option value="">كل المحافظات</option>
-          {cityOptions.map((city) => (
-            <option key={city} value={city}>
-              {city}
+          {cities.map((city) => (
+            <option key={city.id} value={city.id}>
+              {city.name}
             </option>
           ))}
         </select>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="add-btn myadd"
+          style={{ marginLeft: "10px" }}
+        >
+          إضافة عنصر جديد +
+        </button>
       </div>
 
+      {/* مودال الإضافة */}
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>إضافة عنصر جديد</h3>
+
+            {/* اختيار نوع العنصر */}
+            <label className="wide">
+              <select
+                value={newEntry.type}
+                onChange={(e) =>
+                  setNewEntry({ ...newEntry, type: e.target.value })
+                }
+              >
+                {collections.map((col) => (
+                  <option key={col.key} value={col.key}>
+                    {col.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <input
+              placeholder="الاسم"
+              value={newEntry.name}
+              onChange={(e) =>
+                setNewEntry({ ...newEntry, name: e.target.value })
+              }
+            />
+            <textarea
+              placeholder="الوصف"
+              value={newEntry.description}
+              onChange={(e) =>
+                setNewEntry({ ...newEntry, description: e.target.value })
+              }
+            />
+            <input
+              placeholder="رابط الصورة"
+              value={newEntry.imgUrl}
+              onChange={(e) =>
+                setNewEntry({ ...newEntry, imgUrl: e.target.value })
+              }
+            />
+            <select
+              value={newEntry.cityId}
+              onChange={(e) =>
+                setNewEntry({ ...newEntry, cityId: e.target.value })
+              }
+            >
+              <option value="">اختر المحافظة</option>
+              {cities.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={newEntry.isPopular}
+                onChange={(e) =>
+                  setNewEntry({ ...newEntry, isPopular: e.target.checked })
+                }
+              />
+              شائع؟
+            </label>
+
+            <div className="form-actions">
+              <button onClick={handleAddEntry} className="btn save">
+                إضافة ✅
+              </button>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="btn cancel"
+              >
+                إلغاء ❌
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* جدول البيانات */}
       <table className="entries-table">
         <thead>
           <tr>
