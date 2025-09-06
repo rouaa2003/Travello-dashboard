@@ -53,10 +53,28 @@ function Trips() {
         );
 
         // 2️⃣ حذف الرحلات القديمة من Firestore
-        const deletePromises = pastTrips.map((trip) =>
-          deleteDoc(doc(db, "trips", trip.id))
-        );
-        await Promise.all(deletePromises);
+        // 2️⃣ حذف الرحلات القديمة وجميع الحجوزات المرتبطة بها
+        for (const trip of pastTrips) {
+          try {
+            // 🟢 جلب جميع الحجوزات المرتبطة بهذه الرحلة
+            const q = query(
+              collection(db, "bookings"),
+              where("tripId", "==", trip.id)
+            );
+            const snap = await getDocs(q);
+
+            // 🟢 حذف جميع الحجوزات المرتبطة
+            const deleteBookings = snap.docs.map((docSnap) =>
+              deleteDoc(doc(db, "bookings", docSnap.id))
+            );
+            await Promise.all(deleteBookings);
+
+            // 🟢 حذف الرحلة نفسها
+            await deleteDoc(doc(db, "trips", trip.id));
+          } catch (err) {
+            console.error(`فشل حذف الحجوزات أو الرحلة (${trip.id}):`, err);
+          }
+        }
 
         // 3️⃣ الاحتفاظ بالرحلات القادمة فقط
         const upcomingTrips = tripsData.filter(

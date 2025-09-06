@@ -140,7 +140,7 @@ const AddTripPage = () => {
       tripDuration,
       maxSeats,
       createdAt: Timestamp.now(),
-      customTrip: true,
+      customTrip: false,
     };
 
     try {
